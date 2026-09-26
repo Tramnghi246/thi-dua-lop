@@ -1,8 +1,4 @@
-import io
 import os
-import openpyxl
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
 import pandas as pd
 import streamlit as st
 
@@ -10,11 +6,21 @@ st.set_page_config(
     page_title="Hệ Thống Thi Đua Lớp Học", layout="wide", page_icon="🏆"
 )
 
+# Chặn trình duyệt tự động dịch gây lỗi giao diện
+st.markdown(
+    '<head><meta name="google" content="notranslate"></head>',
+    unsafe_allow_html=True,
+)
+
 DATA_FILE = "du_lieu_thi_dua.csv"
 
 
 # 1. HÀM TÍNH XẾP LOẠI THI ĐUA
 def tinh_xep_loai(diem):
+    try:
+        diem = float(diem)
+    except Exception:
+        diem = 100
     if diem >= 100:
         return "Tốt"
     elif diem >= 85:
@@ -25,55 +31,64 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 
-# 2. ĐỌC VÀ LƯU DỮ LIỆU
+# 2. ĐỌC VÀ LƯU DỮ LIỆU AN TOÀN CHỐNG CRASH
 def load_data():
+    default_data = [
+        {
+            "STT": 1,
+            "Họ và tên": "Nguyễn Văn An",
+            "Tổ": "Tổ 1",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 2,
+            "Họ và tên": "Trần Thị Bình",
+            "Tổ": "Tổ 1",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 3,
+            "Họ và tên": "Lê Hoàng Cường",
+            "Tổ": "Tổ 2",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 4,
+            "Họ và tên": "Phạm Minh Đức",
+            "Tổ": "Tổ 2",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 5,
+            "Họ và tên": "Vũ Thu Trang",
+            "Tổ": "Tổ 3",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 6,
+            "Họ và tên": "Hoàng Văn Nam",
+            "Tổ": "Tổ 4",
+            "Điểm thi đua": 100,
+            "Lỗi vi phạm": "",
+        },
+    ]
+
     if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE)
+        try:
+            df = pd.read_csv(DATA_FILE)
+            if df.empty or "Họ và tên" not in df.columns:
+                df = pd.DataFrame(default_data)
+                df.to_csv(DATA_FILE, index=False)
+        except Exception:
+            df = pd.DataFrame(default_data)
+            df.to_csv(DATA_FILE, index=False)
     else:
-        df = pd.DataFrame([
-            {
-                "STT": 1,
-                "Họ và tên": "Nguyễn Văn An",
-                "Tổ": "Tổ 1",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-            {
-                "STT": 2,
-                "Họ và tên": "Trần Thị Bình",
-                "Tổ": "Tổ 1",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-            {
-                "STT": 3,
-                "Họ và tên": "Lê Hoàng Cường",
-                "Tổ": "Tổ 2",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-            {
-                "STT": 4,
-                "Họ và tên": "Phạm Minh Đức",
-                "Tổ": "Tổ 2",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-            {
-                "STT": 5,
-                "Họ và tên": "Vũ Thu Trang",
-                "Tổ": "Tổ 3",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-            {
-                "STT": 6,
-                "Họ và tên": "Hoàng Văn Nam",
-                "Tổ": "Tổ 4",
-                "Điểm thi đua": 100,
-                "Lỗi vi phạm": "",
-            },
-        ])
+        df = pd.DataFrame(default_data)
         df.to_csv(DATA_FILE, index=False)
 
     df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
@@ -81,7 +96,10 @@ def load_data():
 
 
 def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
+    try:
+        df.to_csv(DATA_FILE, index=False)
+    except Exception as e:
+        st.error(f"Lỗi lưu dữ liệu: {e}")
 
 
 if "students" not in st.session_state:
@@ -92,16 +110,16 @@ DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
     "💯 Đạt điểm 9, 10 (+2 điểm)": 2,
     "✉️ Nghỉ học có phép (-2 điểm)": -2,
-    "⏰ Đi muộn (-3 điểm)": -3,
+    "⏰ Đi muộn (-5 điểm)": -5,
     "📚 Không học bài / Thiếu BTVN (-5 điểm)": -5,
     "👔 Không mặc đồng phục / Thiếu khăn quàng (-5 điểm)": -5,
-    "🔊 Mất trật tự trong giờ (-2 điểm)": -2,
+    "🔊 Mất trật tự trong giờ (-5 điểm)": -5,
     "👔 Nền nếp tác phong (-5 điểm)": -5,
     "🧹 Không vệ sinh, lao động (-5 điểm)": -5,
-    "🤬 Nói tục / Tác phong kém (-5 điểm)": -5,
-    "📱 Sử dụng điện thoại (-20 điểm)": -20,
+    "🤬 Nói tục / Tác phong kém (-10 điểm)": -10,
+    "📱 Sử dụng điện thoại (-10 điểm)": -10,
     "🪑 Không bảo vệ của công (-10 điểm)": -10,
-    "🚨 Nghỉ học không phép (-5 điểm)": -5,
+    "🚨 Nghỉ học không phép (-15 điểm)": -15,
     "🚦 Vi phạm ATGT (-20 điểm)": -20,
 }
 
@@ -234,7 +252,6 @@ if menu == "📝 Ghi Nhận Thi Đua":
                 st.session_state.students["Họ và tên"] == student_name
             ].index[0]
 
-            # Cập nhật điểm và Xếp loại
             st.session_state.students.at[idx, "Điểm thi đua"] += total_change
             new_score = st.session_state.students.at[idx, "Điểm thi đua"]
             st.session_state.students.at[idx, "Xếp loại"] = tinh_xep_loai(
@@ -248,10 +265,13 @@ if menu == "📝 Ghi Nhận Thi Đua":
                 + (f" ({note})" if note else "")
             )
 
-            old_log = st.session_state.students.at[idx, "Lỗi vi phạm"]
-            st.session_state.students.at[idx, "Lỗi vi phạm"] = (
-                f"{old_log} | {log_text}" if old_log else log_text
-            )
+            old_log = str(st.session_state.students.at[idx, "Lỗi vi phạm"])
+            if old_log == "nan" or not old_log:
+                st.session_state.students.at[idx, "Lỗi vi phạm"] = log_text
+            else:
+                st.session_state.students.at[idx, "Lỗi vi phạm"] = (
+                    f"{old_log} | {log_text}"
+                )
 
             save_data(st.session_state.students)
             st.success(
@@ -273,22 +293,13 @@ elif menu == "📊 Bảng Tổng Hợp Lớp":
     df = st.session_state.students
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric(
-        "🏅 Loại Tốt (≥100đ)",
-        f"{len(df[df['Xếp loại'] == 'Tốt'])} em",
-    )
-    c2.metric(
-        "👍 Loại Khá (85-99đ)",
-        f"{len(df[df['Xếp loại'] == 'Khá'])} em",
-    )
+    c1.metric("🏅 Loại Tốt (≥100đ)", f"{len(df[df['Xếp loại'] == 'Tốt'])} em")
+    c2.metric("👍 Loại Khá (85-99đ)", f"{len(df[df['Xếp loại'] == 'Khá'])} em")
     c3.metric(
         "😐 Loại T.Bình (75-84đ)",
         f"{len(df[df['Xếp loại'] == 'Trung bình'])} em",
     )
-    c4.metric(
-        "⚠️ Loại Yếu (<75đ)",
-        f"{len(df[df['Xếp loại'] == 'Yếu'])} em",
-    )
+    c4.metric("⚠️ Loại Yếu (<75đ)", f"{len(df[df['Xếp loại'] == 'Yếu'])} em")
 
     st.markdown("---")
 
@@ -323,4 +334,5 @@ else:
         data=csv,
         file_name="Bao_Cao_Thi_Dua_Xep_Loai.csv",
         mime="text/csv",
+    )
     )
