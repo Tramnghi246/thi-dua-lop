@@ -5,18 +5,18 @@ import pandas as pd
 import requests
 import streamlit as st
 
-# Cấu hình trang
 st.set_page_config(
     page_title="Hệ Thống Thi Đua Lớp Học", layout="wide", page_icon="🏆"
 )
-
 st.markdown(
     '<head><meta name="google" content="notranslate"></head>',
     unsafe_allow_html=True,
 )
 
-# NẾU CÓ LINK GOOGLE APPS SCRIPT, HÃY DÁN VÀO GIỮA 2 DẤU NGOẶC KÉP DƯỚI ĐÂY:
-API_URL ="https://script.google.com/macros/s/AKfycbyH2ok5WSMLG6aIQlnbwWUU9LrxE_JQFrpXM9rSPl9I9DwF9swI1VF664DuNEBVigOgkQ/exec"
+# --------------------------------------------------------------------------
+# DÁN LINK GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP Ở DÒNG DƯỚI:
+API_URL = ""
+# --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
 
@@ -34,6 +34,83 @@ def tinh_xep_loai(diem):
         return "Trung bình"
     else:
         return "Yếu"
+
+
+# Dữ liệu mặc định đầy đủ 4 Tổ
+DEFAULT_STUDENTS = [
+    {
+        "STT": 1,
+        "Họ và tên": "Võ Huỳnh Minh An",
+        "Tổ": "Tổ 1",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 2,
+        "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân",
+        "Tổ": "Tổ 1",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 3,
+        "Họ và tên": "Ngô Gia Hân",
+        "Tổ": "Tổ 1",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 4,
+        "Họ và tên": "Nguyen Văn B",
+        "Tổ": "Tổ 2",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 5,
+        "Họ và tên": "Trần Thị C",
+        "Tổ": "Tổ 2",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 6,
+        "Họ và tên": "Lê Văn D",
+        "Tổ": "Tổ 3",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 7,
+        "Họ và tên": "Phạm Thị E",
+        "Tổ": "Tổ 3",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 8,
+        "Họ và tên": "Hoàng Văn F",
+        "Tổ": "Tổ 4",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+    {
+        "STT": 9,
+        "Họ và tên": "Vũ Thị G",
+        "Tổ": "Tổ 4",
+        "Điểm thi đua": 100,
+        "Xếp loại": "Tốt",
+        "Lỗi vi phạm": "None",
+    },
+]
 
 
 def load_data():
@@ -71,89 +148,7 @@ def load_data():
         except Exception:
             pass
 
-    default_data = [
-        {
-            "STT": 2,
-            "Họ và tên": "Võ Huỳnh Minh An",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 3,
-            "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 5,
-            "Họ và tên": "Ngô Gia Hân",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 7,
-            "Họ và tên": "Huỳnh Ngọc Huy",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 9,
-            "Họ và tên": "Nguyễn Huỳnh Gia Hưng",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 10,
-            "Họ và tên": "Lê Quỳnh Diễm Hương",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 12,
-            "Họ và tên": "Bùi Nhật Khiêm",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 14,
-            "Họ và tên": "Lê Ngọc Ánh Loan",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 16,
-            "Họ và tên": "Nguyễn Trần Xuân Nghi",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-        {
-            "STT": 18,
-            "Họ và tên": "Võ Như Nguyệt",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Xếp loại": "Tốt",
-            "Lỗi vi phạm": "None",
-        },
-    ]
-    df = pd.DataFrame(default_data)
+    df = pd.DataFrame(DEFAULT_STUDENTS)
     df.to_csv(DATA_FILE, index=False)
     return df
 
@@ -207,6 +202,7 @@ chuc_nang = st.sidebar.radio(
 if st.sidebar.button("🔄 Cập nhật dữ liệu mới nhất"):
     st.rerun()
 
+# Lọc danh sách theo Tổ
 if "Tổ 1" in vai_tro:
     df_view = df[df["Tổ"] == "Tổ 1"]
 elif "Tổ 2" in vai_tro:
@@ -263,6 +259,8 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                     f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
                 )
                 st.rerun()
+    else:
+        st.warning("⚠️ Không tìm thấy học sinh thuộc tổ này trong hệ thống!")
 
     st.subheader("📋 Bảng điểm học sinh thuộc quyền quản lý:")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
