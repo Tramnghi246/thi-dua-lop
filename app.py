@@ -72,76 +72,80 @@ DEFAULT_STUDENTS = [
 ]
 
 
-def clean_dataframe(df):
-    if df.empty:
-        return df
+def clean_dataframe(df_input):
+    if df_input is None or df_input.empty:
+        return pd.DataFrame(DEFAULT_STUDENTS)
 
-    # Xóa khoảng trắng ở tên cột
-    df.columns = [str(c).strip() for c in df.columns]
+    df_clean = df_input.copy()
+    df_clean.columns = [str(c).strip() for c in df_clean.columns]
+
     required_cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua"]
     for col in required_cols:
-        if col not in df.columns:
-            return pd.DataFrame()
+        if col not in df_clean.columns:
+            return pd.DataFrame(DEFAULT_STUDENTS)
 
-    # LOẠI BỎ TẤT CẢ CÁC DÒNG RÁC / TRỐNG (None, nan, rỗng)
-    df = df.dropna(subset=["Họ và tên"])
-    df["Họ và tên"] = df["Họ và tên"].astype(str).str.strip()
-    df = df[
-        ~df["Họ và tên"].str.lower().isin(["none", "nan", "", "null", "none (none)"])
+    # Loại bỏ các dòng trống / rác
+    df_clean = df_clean.dropna(subset=["Họ và tên"])
+    df_clean["Họ và tên"] = df_clean["Họ và tên"].astype(str).str.strip()
+    df_clean = df_clean[
+        ~df_clean["Họ và tên"]
+        .str.lower()
+        .isin(["none", "nan", "", "null", "none (none)"])
     ]
 
-    df["Tổ"] = df["Tổ"].astype(str).str.strip()
-    df["Điểm thi đua"] = (
-        pd.to_numeric(df["Điểm thi đua"], errors="coerce")
+    df_clean["Tổ"] = df_clean["Tổ"].astype(str).str.strip()
+    df_clean["Điểm thi đua"] = (
+        pd.to_numeric(df_clean["Điểm thi đua"], errors="coerce")
         .fillna(100)
         .astype(int)
     )
 
-    if "Lỗi vi phạm" in df.columns:
-        df["Lỗi vi phạm"] = df["Lỗi vi phạm"].fillna("None").astype(str)
+    if "Lỗi vi phạm" in df_clean.columns:
+        df_clean["Lỗi vi phạm"] = (
+            df_clean["Lỗi vi phạm"].fillna("None").astype(str)
+        )
     else:
-        df["Lỗi vi phạm"] = "None"
+        df_clean["Lỗi vi phạm"] = "None"
 
-    df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-    return df.reset_index(drop=True)
+    df_clean["Xếp loại"] = df_clean["Điểm thi đua"].apply(tinh_xep_loai)
+    return df_clean.reset_index(drop=True)
 
 
 def load_data():
-    if API_URL.startswith("http"):
+    if API_URL and API_URL.startswith("http"):
         try:
             res = requests.get(API_URL, timeout=5)
             data = res.json()
-            if len(data) > 1:
+            if isinstance(data, list) and len(data) > 1:
                 headers = [str(h).strip() for h in data[0]]
                 rows = data[1:]
-                df = pd.DataFrame(rows, columns=headers)
-                df = clean_dataframe(df)
-                if not df.empty:
-                    return df
+                df_temp = pd.DataFrame(rows, columns=headers)
+                df_res = clean_dataframe(df_temp)
+                if not df_res.empty:
+                    return df_res
         except Exception:
             pass
 
     if os.path.exists(DATA_FILE):
         try:
-            df = pd.read_csv(DATA_FILE)
-            df = clean_dataframe(df)
-            if not df.empty:
-                return df
+            df_temp = pd.read_csv(DATA_FILE)
+            df_res = clean_dataframe(df_temp)
+            if not df_res.empty:
+                return df_res
         except Exception:
             pass
 
-    df = pd.DataFrame(DEFAULT_STUDENTS)
-    df.to_csv(DATA_FILE, index=False)
-    return df
+    df_default = pd.DataFrame(DEFAULT_STUDENTS)
+    df_default.to_csv(DATA_FILE, index=False)
+    return df_default
 
 
-def save_data(df):
-    if API_URL.startswith("http"):
+def save_data(df_to_save):
+    if API_URL and API_URL.startswith("http"):
         try:
-            headers = df.columns.tolist()
-            values = [headers] + df.astype(str).values.tolist()
+            headers = df_to_save.columns.tolist()
+            values = [headers] + df_to_save.astype(str).values.tolist()
             json_str = json.dumps(values)
-            # Dùng POST giúp truyền dữ liệu ổn định không giới hạn độ dài
             requests.post(
                 f"{API_URL}?action=write",
                 data=json_str,
@@ -150,7 +154,11 @@ def save_data(df):
             )
         except Exception:
             pass
-    df.to_csv(DATA_FILE, index=False)
+    df_to_save.to_csv(DATA_FILE, index=False)
+
+
+# Đảm bảo df luôn được định nghĩa chính xác
+df = load_data()
 
 DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
@@ -186,17 +194,17 @@ with col_btn:
     if st.button("🔄 Cập nhật dữ liệu"):
         st.rerun()
 
-# Lọc danh sách học sinh theo vai trò
+# Lọc danh sách học sinh theo vai trò an toàn
 if "Tổ 1" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("1", na=False)]
+    df_view = df[df["Tổ"].str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("2", na=False)]
+    df_view = df[df["Tổ"].str.contains("2", na=False)].copy()
 elif "Tổ 3" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("3", na=False)]
+    df_view = df[df["Tổ"].str.contains("3", na=False)].copy()
 elif "Tổ 4" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("4", na=False)]
+    df_view = df[df["Tổ"].str.contains("4", na=False)].copy()
 else:
-    df_view = df
+    df_view = df.copy()
 
 chuc_nang = st.sidebar.radio(
     "Chức năng:",
@@ -223,30 +231,32 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
             submit = st.form_submit_button("💾 LƯU ĐIỂM SỐ")
 
             if submit:
-                idx = df[df["Họ và tên"] == ten_hs].index[0]
-                diem_thay_doi = int(DANH_SACH_LOI[loi]) * int(so_lan)
-                new_score = int(df.at[idx, "Điểm thi đua"]) + diem_thay_doi
+                match_idx = df[df["Họ và tên"] == ten_hs].index
+                if len(match_idx) > 0:
+                    idx = match_idx[0]
+                    diem_thay_doi = int(DANH_SACH_LOI[loi]) * int(so_lan)
+                    new_score = int(df.at[idx, "Điểm thi đua"]) + diem_thay_doi
 
-                df.at[idx, "Điểm thi đua"] = new_score
-                df.at[idx, "Xếp loại"] = tinh_xep_loai(new_score)
+                    df.at[idx, "Điểm thi đua"] = new_score
+                    df.at[idx, "Xếp loại"] = tinh_xep_loai(new_score)
 
-                loi_clean = loi.split(" (")[0]
-                log_text = (
-                    f"{loi_clean} x{so_lan}"
-                    + (f" ({ghi_chu})" if ghi_chu else "")
-                )
-                old_log = str(df.at[idx, "Lỗi vi phạm"])
+                    loi_clean = loi.split(" (")[0]
+                    log_text = (
+                        f"{loi_clean} x{so_lan}"
+                        + (f" ({ghi_chu})" if ghi_chu else "")
+                    )
+                    old_log = str(df.at[idx, "Lỗi vi phạm"])
 
-                if old_log in ["None", "nan", "", "NaN"]:
-                    df.at[idx, "Lỗi vi phạm"] = log_text
-                else:
-                    df.at[idx, "Lỗi vi phạm"] = f"{old_log} | {log_text}"
+                    if old_log in ["None", "nan", "", "NaN"]:
+                        df.at[idx, "Lỗi vi phạm"] = log_text
+                    else:
+                        df.at[idx, "Lỗi vi phạm"] = f"{old_log} | {log_text}"
 
-                save_data(df)
-                st.success(
-                    f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
-                )
-                st.rerun()
+                    save_data(df)
+                    st.success(
+                        f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
+                    )
+                    st.rerun()
     else:
         st.warning("⚠️ Không tìm thấy dữ liệu học sinh!")
 
