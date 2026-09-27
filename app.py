@@ -16,7 +16,7 @@ st.markdown(
 DATA_FILE = "du_lieu_thi_dua.csv"
 
 
-# Hàm tính xếp loại chuẩn xác
+# Hàm tính xếp loại chuẩn
 def tinh_xep_loai(diem):
     try:
         diem = float(diem)
@@ -33,7 +33,7 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 
-# Đọc và chuẩn hóa dữ liệu chống lỗi TypeError
+# Đọc dữ liệu trực tiếp từ tệp CSV (không lưu cứng trong bộ nhớ)
 def load_data():
     data_default = [
         {
@@ -84,7 +84,6 @@ def load_data():
         try:
             df = pd.read_csv(DATA_FILE)
             if not df.empty and "Họ và tên" in df.columns:
-                # Ép kiểu dữ liệu an toàn
                 df["Điểm thi đua"] = (
                     pd.to_numeric(df["Điểm thi đua"], errors="coerce")
                     .fillna(100)
@@ -104,8 +103,8 @@ def load_data():
     return df
 
 
-if "students" not in st.session_state:
-    st.session_state.students = load_data()
+# Tải dữ liệu mới nhất mỗi lần thao tác
+df = load_data()
 
 # Danh mục điểm cộng / trừ
 DANH_SACH_LOI = {
@@ -136,7 +135,9 @@ vai_tro = st.sidebar.selectbox(
     ],
 )
 
-df = st.session_state.students
+# Nút đồng bộ dữ liệu nhanh
+if st.sidebar.button("🔄 Cập nhật dữ liệu mới nhất"):
+    st.rerun()
 
 if "Tổ 1" in vai_tro:
     df_view = df[df["Tổ"] == "Tổ 1"]
@@ -172,16 +173,11 @@ if not df_view.empty:
                 idx = idx_list[0]
                 diem_thay_doi = int(DANH_SACH_LOI[loi]) * int(so_lan)
 
-                # Ép kiểu điểm cũ về int để thực hiện phép cộng an toàn
-                current_score = int(
-                    st.session_state.students.at[idx, "Điểm thi đua"]
-                )
+                current_score = int(df.at[idx, "Điểm thi đua"])
                 new_score = current_score + diem_thay_doi
 
-                st.session_state.students.at[idx, "Điểm thi đua"] = new_score
-                st.session_state.students.at[idx, "Xếp loại"] = tinh_xep_loai(
-                    new_score
-                )
+                df.at[idx, "Điểm thi đua"] = new_score
+                df.at[idx, "Xếp loại"] = tinh_xep_loai(new_score)
 
                 loi_clean = loi.split(" (")[0]
                 log_text = (
@@ -189,17 +185,14 @@ if not df_view.empty:
                     + (f" ({ghi_chu})" if ghi_chu else "")
                 )
 
-                old_log = str(
-                    st.session_state.students.at[idx, "Lỗi vi phạm"]
-                )
+                old_log = str(df.at[idx, "Lỗi vi phạm"])
                 if old_log in ["nan", "None", "", "NaN"]:
-                    st.session_state.students.at[idx, "Lỗi vi phạm"] = log_text
+                    df.at[idx, "Lỗi vi phạm"] = log_text
                 else:
-                    st.session_state.students.at[idx, "Lỗi vi phạm"] = (
-                        f"{old_log} | {log_text}"
-                    )
+                    df.at[idx, "Lỗi vi phạm"] = f"{old_log} | {log_text}"
 
-                st.session_state.students.to_csv(DATA_FILE, index=False)
+                # Ghi trực tiếp vào file CSV chung
+                df.to_csv(DATA_FILE, index=False)
                 st.success(
                     f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
                 )
