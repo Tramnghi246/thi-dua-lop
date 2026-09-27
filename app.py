@@ -115,10 +115,7 @@ DEFAULT_STUDENTS = [
 def clean_dataframe(df):
     if df.empty:
         return df
-
-    # Làm sạch tên các cột
     df.columns = [str(c).strip() for c in df.columns]
-
     required_cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua"]
     for col in required_cols:
         if col not in df.columns:
@@ -127,7 +124,9 @@ def clean_dataframe(df):
     df["Tổ"] = df["Tổ"].astype(str).str.strip()
     df["Họ và tên"] = df["Họ và tên"].astype(str).str.strip()
     df["Điểm thi đua"] = (
-        pd.to_numeric(df["Điểm thi đua"], errors="coerce").fillna(100).astype(int)
+        pd.to_numeric(df["Điểm thi đua"], errors="coerce")
+        .fillna(100)
+        .astype(int)
     )
 
     if "Lỗi vi phạm" in df.columns:
@@ -197,27 +196,29 @@ DANH_SACH_LOI = {
     "🚨 Nghỉ học không phép (-15 điểm)": -15,
 }
 
-st.sidebar.title("🔐 ĐĂNG NHẬP VAI TRÒ")
-vai_tro = st.sidebar.selectbox(
-    "Bạn là ai?",
-    [
-        "Tổ trưởng Tổ 1",
-        "Tổ trưởng Tổ 2",
-        "Tổ trưởng Tổ 3",
-        "Tổ trưởng Tổ 4",
-        "👑 Giáo viên chủ nhiệm",
-    ],
-)
+# TIÊU ĐỀ TRANG CHÍNH
+st.title("🏆 QUẢN LÝ THI ĐUA LỚP HỌC")
 
-chuc_nang = st.sidebar.radio(
-    "Chức năng:",
-    ["📝 Ghi Nhận Thi Đua", "📊 Bảng Tổng Hợp Lớp", "📬 Tải File Báo Cáo"],
-)
+# ĐƯA BỘ CHỌN TỔ RA NGAY TRANG CHÍNH DỄ NHÌN TRÊN ĐIỆN THOẠI
+col_to, col_btn = st.columns([3, 1])
+with col_to:
+    vai_tro = st.selectbox(
+        "🔐 BẠN LÀ AI? (Chọn đúng Tổ của bạn):",
+        [
+            "Tổ trưởng Tổ 1",
+            "Tổ trưởng Tổ 2",
+            "Tổ trưởng Tổ 3",
+            "Tổ trưởng Tổ 4",
+            "👑 Giáo viên chủ nhiệm (Xem tất cả)",
+        ],
+    )
+with col_btn:
+    st.write("")
+    st.write("")
+    if st.button("🔄 Cập nhật"):
+        st.rerun()
 
-if st.sidebar.button("🔄 Cập nhật dữ liệu mới nhất"):
-    st.rerun()
-
-# Lọc danh sách thông minh (chống lỗi khoảng trắng)
+# Lọc danh sách học sinh theo Tổ được chọn
 if "Tổ 1" in vai_tro:
     df_view = df[df["Tổ"].str.contains("1", na=False)]
 elif "Tổ 2" in vai_tro:
@@ -229,12 +230,17 @@ elif "Tổ 4" in vai_tro:
 else:
     df_view = df
 
-if chuc_nang == "📝 Ghi Nhận Thi Đua":
-    st.title("🏆 HỆ THỐNG QUẢN LÝ THI ĐUA LỚP HỌC")
+# Chọn chức năng phụ
+chuc_nang = st.sidebar.radio(
+    "Chức năng:",
+    ["📝 Ghi Nhận Thi Đua", "📊 Bảng Tổng Hợp Lớp", "📬 Tải File Báo Cáo"],
+)
 
+if chuc_nang == "📝 Ghi Nhận Thi Đua":
     if not df_view.empty:
         student_list = df_view["Họ và tên"].tolist()
         with st.form("nhap_diem_form"):
+            st.subheader(f"📝 Nhập điểm - {vai_tro}")
             col1, col2 = st.columns(2)
             with col1:
                 ten_hs = st.selectbox("👤 Chọn học sinh:", student_list)
@@ -276,24 +282,20 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                 st.rerun()
     else:
         st.warning("⚠️ Không tìm thấy học sinh thuộc tổ này trong hệ thống!")
-        if "Tổ" in df.columns:
-            st.info(
-                f"💡 Dữ liệu hiện tại đang ghi nhận cột Tổ gồm: {df['Tổ'].unique().tolist()}"
-            )
 
-    st.subheader("📋 Bảng điểm học sinh thuộc quyền quản lý:")
+    st.subheader("📋 Danh sách học sinh thuộc Tổ:")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
     valid_cols = [c for c in cols if c in df_view.columns]
     st.dataframe(df_view[valid_cols], use_container_width=True, hide_index=True)
 
 elif chuc_nang == "📊 Bảng Tổng Hợp Lớp":
-    st.title("📊 BẢNG TỔNG HỢP THI ĐUA TOÀN LỚP")
+    st.subheader("📊 BẢNG TỔNG HỢP THI ĐUA TOÀN LỚP")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
     valid_cols = [c for c in cols if c in df.columns]
     st.dataframe(df[valid_cols], use_container_width=True, hide_index=True)
 
 elif chuc_nang == "📬 Tải File Báo Cáo":
-    st.title("📬 TẢI BÁO CÁO THI ĐUA")
+    st.subheader("📬 TẢI BÁO CÁO THI ĐUA")
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="ThiDua")
