@@ -141,15 +141,16 @@ def save_data(df):
             headers = df.columns.tolist()
             values = [headers] + df.astype(str).values.tolist()
             json_str = json.dumps(values)
-            requests.get(
-                API_URL, params={"action": "write", "data": json_str}, timeout=5
+            # Dùng POST giúp truyền dữ liệu ổn định không giới hạn độ dài
+            requests.post(
+                f"{API_URL}?action=write",
+                data=json_str,
+                headers={"Content-Type": "application/json"},
+                timeout=10,
             )
         except Exception:
             pass
     df.to_csv(DATA_FILE, index=False)
-
-
-df = load_data()
 
 DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
