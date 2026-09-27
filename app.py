@@ -147,21 +147,32 @@ def save_data(df_to_save):
             values = [headers] + df_to_save.astype(str).values.tolist()
             json_str = json.dumps(values)
 
-            # Gửi dữ liệu cập nhật
-            res = requests.post(
-                f"{API_URL}?action=write",
-                data=json_str,
-                headers={"Content-Type": "application/json"},
-                timeout=10,
+            # Truyền tham số qua GET giúp tránh lỗi 302 Redirect của Google
+            res = requests.get(
+                API_URL,
+                params={"action": "write", "data": json_str},
+                timeout=15,
             )
-            res_data = res.json()
-            if res_data.get("status") == "success":
-                return True, "Thành công"
+
+            if res.status_code == 200:
+                try:
+                    res_data = res.json()
+                    if res_data.get("status") == "success":
+                        return True, "Thành công"
+                    else:
+                        return (
+                            False,
+                            res_data.get(
+                                "message", "Lỗi phản hồi từ Google Sheet"
+                            ),
+                        )
+                except Exception:
+                    return (
+                        False,
+                        "Google trả về HTML. Kiểm tra lại quyền 'Bất kỳ ai' ở bản triển khai.",
+                    )
             else:
-                return (
-                    False,
-                    res_data.get("message", "Lỗi phản hồi từ Google Sheet"),
-                )
+                return False, f"Mã lỗi HTTP: {res.status_code}"
         except Exception as e:
             return False, str(e)
     return False, "Chưa điền API_URL Google Apps Script"
@@ -266,9 +277,7 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                         )
                         st.rerun()
                     else:
-                        st.error(
-                            f"❌ KHÔNG THỂ CẬP NHẬT GOOGLE SHEET: {msg}. Hãy kiểm tra lại link API_URL hoặc quyền truy cập 'Bất kỳ ai'."
-                        )
+                        st.error(f"❌ CHƯA CẬP NHẬT ĐƯỢC: {msg}")
     else:
         st.warning("⚠️ Không tìm thấy dữ liệu học sinh!")
 
