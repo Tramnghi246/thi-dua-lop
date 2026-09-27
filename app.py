@@ -16,12 +16,13 @@ st.markdown(
 DATA_FILE = "du_lieu_thi_dua.csv"
 
 
-# Hàm tính xếp loại
+# Hàm tính xếp loại chuẩn xác
 def tinh_xep_loai(diem):
     try:
         diem = float(diem)
     except Exception:
-        diem = 100
+        diem = 100.0
+
     if diem >= 100:
         return "Tốt"
     elif diem >= 85:
@@ -32,18 +33,9 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 
-# Đọc hoặc tạo dữ liệu ban đầu
+# Đọc và chuẩn hóa dữ liệu chống lỗi TypeError
 def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            df = pd.read_csv(DATA_FILE)
-            if not df.empty and "Họ và tên" in df.columns:
-                df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-                return df
-        except Exception:
-            pass
-
-    data = [
+    data_default = [
         {
             "STT": 1,
             "Họ và tên": "Nguyễn Văn An",
@@ -87,7 +79,26 @@ def load_data():
             "Lỗi vi phạm": "",
         },
     ]
-    df = pd.DataFrame(data)
+
+    if os.path.exists(DATA_FILE):
+        try:
+            df = pd.read_csv(DATA_FILE)
+            if not df.empty and "Họ và tên" in df.columns:
+                # Ép kiểu dữ liệu an toàn
+                df["Điểm thi đua"] = (
+                    pd.to_numeric(df["Điểm thi đua"], errors="coerce")
+                    .fillna(100)
+                    .astype(int)
+                )
+                df["Lỗi vi phạm"] = (
+                    df["Lỗi vi phạm"].fillna("").astype(str)
+                )
+                df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
+                return df
+        except Exception:
+            pass
+
+    df = pd.DataFrame(data_default)
     df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
     df.to_csv(DATA_FILE, index=False)
     return df
@@ -156,33 +167,43 @@ if not df_view.empty:
         submit = st.form_submit_button("💾 LƯU ĐIỂM")
 
         if submit:
-            idx = df[df["Họ và tên"] == ten_hs].index[0]
-            diem_thay_doi = DANH_SACH_LOI[loi] * so_lan
+            idx_list = df[df["Họ và tên"] == ten_hs].index
+            if len(idx_list) > 0:
+                idx = idx_list[0]
+                diem_thay_doi = int(DANH_SACH_LOI[loi]) * int(so_lan)
 
-            st.session_state.students.at[idx, "Điểm thi đua"] += diem_thay_doi
-            new_score = st.session_state.students.at[idx, "Điểm thi đua"]
-            st.session_state.students.at[idx, "Xếp loại"] = tinh_xep_loai(
-                new_score
-            )
+                # Ép kiểu điểm cũ về int để thực hiện phép cộng an toàn
+                current_score = int(
+                    st.session_state.students.at[idx, "Điểm thi đua"]
+                )
+                new_score = current_score + diem_thay_doi
 
-            loi_clean = loi.split(" (")[0]
-            log_text = (
-                f"{loi_clean} x{so_lan}" + (f" ({ghi_chu})" if ghi_chu else "")
-            )
-            old_log = str(st.session_state.students.at[idx, "Lỗi vi phạm"])
-
-            if old_log == "nan" or not old_log:
-                st.session_state.students.at[idx, "Lỗi vi phạm"] = log_text
-            else:
-                st.session_state.students.at[idx, "Lỗi vi phạm"] += (
-                    f" | {log_text}"
+                st.session_state.students.at[idx, "Điểm thi đua"] = new_score
+                st.session_state.students.at[idx, "Xếp loại"] = tinh_xep_loai(
+                    new_score
                 )
 
-            st.session_state.students.to_csv(DATA_FILE, index=False)
-            st.success(
-                f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
-            )
-            st.rerun()
+                loi_clean = loi.split(" (")[0]
+                log_text = (
+                    f"{loi_clean} x{so_lan}"
+                    + (f" ({ghi_chu})" if ghi_chu else "")
+                )
+
+                old_log = str(
+                    st.session_state.students.at[idx, "Lỗi vi phạm"]
+                )
+                if old_log in ["nan", "None", "", "NaN"]:
+                    st.session_state.students.at[idx, "Lỗi vi phạm"] = log_text
+                else:
+                    st.session_state.students.at[idx, "Lỗi vi phạm"] = (
+                        f"{old_log} | {log_text}"
+                    )
+
+                st.session_state.students.to_csv(DATA_FILE, index=False)
+                st.success(
+                    f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
+                )
+                st.rerun()
 
 cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
 st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
