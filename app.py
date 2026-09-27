@@ -14,8 +14,8 @@ st.markdown(
 )
 
 # --------------------------------------------------------------------------
-# DÁN LINK GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP Ở DÒNG DƯỚI:
-API_URL = "https://script.google.com/macros/s/AKfycbx-mdhLLrjvKrBAXTErXN9ld4D78PXv9Mf2-HJUe0LG6jIx9e-Fel5mpqZtYMBLPqUa/exec"
+# DÁN LINK GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP DƯỚI ĐÂY:
+API_URL = "https://script.google.com/macros/s/AKfycbyoZp8di7TM_Kze_u4HRMGtitRNx8PCgIXOZfF09YE9dF_waGFKmlHqsd68-gwknves/exec"
 # --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
@@ -84,7 +84,6 @@ def clean_dataframe(df_input):
         if col not in df_clean.columns:
             return pd.DataFrame(DEFAULT_STUDENTS)
 
-    # Loại bỏ các dòng trống / rác
     df_clean = df_clean.dropna(subset=["Họ và tên"])
     df_clean["Họ và tên"] = df_clean["Họ và tên"].astype(str).str.strip()
     df_clean = df_clean[
@@ -114,7 +113,7 @@ def clean_dataframe(df_input):
 def load_data():
     if API_URL and API_URL.startswith("http"):
         try:
-            res = requests.get(API_URL, timeout=5)
+            res = requests.get(API_URL, timeout=8)
             data = res.json()
             if isinstance(data, list) and len(data) > 1:
                 headers = [str(h).strip() for h in data[0]]
@@ -141,23 +140,33 @@ def load_data():
 
 
 def save_data(df_to_save):
+    df_to_save.to_csv(DATA_FILE, index=False)
     if API_URL and API_URL.startswith("http"):
         try:
             headers = df_to_save.columns.tolist()
             values = [headers] + df_to_save.astype(str).values.tolist()
             json_str = json.dumps(values)
-            requests.post(
+
+            # Gửi dữ liệu cập nhật
+            res = requests.post(
                 f"{API_URL}?action=write",
                 data=json_str,
                 headers={"Content-Type": "application/json"},
                 timeout=10,
             )
-        except Exception:
-            pass
-    df_to_save.to_csv(DATA_FILE, index=False)
+            res_data = res.json()
+            if res_data.get("status") == "success":
+                return True, "Thành công"
+            else:
+                return (
+                    False,
+                    res_data.get("message", "Lỗi phản hồi từ Google Sheet"),
+                )
+        except Exception as e:
+            return False, str(e)
+    return False, "Chưa điền API_URL Google Apps Script"
 
 
-# Đảm bảo df luôn được định nghĩa chính xác
 df = load_data()
 
 DANH_SACH_LOI = {
@@ -173,7 +182,6 @@ DANH_SACH_LOI = {
     "🚨 Nghỉ học không phép (-15 điểm)": -15,
 }
 
-# TIÊU ĐỀ TRANG CHÍNH
 st.title("🏆 QUẢN LÝ THI ĐUA LỚP HỌC")
 
 col_to, col_btn = st.columns([3, 1])
@@ -194,7 +202,6 @@ with col_btn:
     if st.button("🔄 Cập nhật dữ liệu"):
         st.rerun()
 
-# Lọc danh sách học sinh theo vai trò an toàn
 if "Tổ 1" in vai_tro:
     df_view = df[df["Tổ"].str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
@@ -252,11 +259,16 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                     else:
                         df.at[idx, "Lỗi vi phạm"] = f"{old_log} | {log_text}"
 
-                    save_data(df)
-                    st.success(
-                        f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
-                    )
-                    st.rerun()
+                    saved_ok, msg = save_data(df)
+                    if saved_ok:
+                        st.success(
+                            f"✅ Đã lưu điểm cho em {ten_hs} lên Google Sheet! (Điểm mới: {new_score})"
+                        )
+                        st.rerun()
+                    else:
+                        st.error(
+                            f"❌ KHÔNG THỂ CẬP NHẬT GOOGLE SHEET: {msg}. Hãy kiểm tra lại link API_URL hoặc quyền truy cập 'Bất kỳ ai'."
+                        )
     else:
         st.warning("⚠️ Không tìm thấy dữ liệu học sinh!")
 
