@@ -15,7 +15,7 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP Ở DÒNG DƯỚI:
-API_URL = "https://script.google.com/macros/s/AKfycbyH2ok5WSMLG6aIQlnbwWUU9LrxE_JQFrpXM9rSPl9I9DwF9swI1VF664DuNEBVigOgkQ/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbx-mdhLLrjvKrBAXTErXN9ld4D78PXv9Mf2-HJUe0LG6jIx9e-Fel5mpqZtYMBLPqUa/exec"
 # --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
