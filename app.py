@@ -16,7 +16,7 @@ st.markdown(
 )
 
 # NẾU CÓ LINK GOOGLE APPS SCRIPT, HÃY DÁN VÀO GIỮA 2 DẤU NGOẶC KÉP DƯỚI ĐÂY:
-API_URL ="https://script.google.com/macros/s/AKfycbx.../exec"
+API_URL ="https://script.google.com/macros/s/AKfycbyH2ok5WSMLG6aIQlnbwWUU9LrxE_JQFrpXM9rSPl9I9DwF9swI1VF664DuNEBVigOgkQ/exec"
 
 DATA_FILE = "du_lieu_thi_dua.csv"
 
