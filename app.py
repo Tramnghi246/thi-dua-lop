@@ -36,7 +36,6 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 
-# Dữ liệu mặc định đầy đủ 4 Tổ
 DEFAULT_STUDENTS = [
     {
         "STT": 1,
@@ -64,7 +63,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 4,
-        "Họ và tên": "Nguyen Văn B",
+        "Họ và tên": "Nguyễn Văn An",
         "Tổ": "Tổ 2",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -72,7 +71,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 5,
-        "Họ và tên": "Trần Thị C",
+        "Họ và tên": "Trần Thị Bình",
         "Tổ": "Tổ 2",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -80,7 +79,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 6,
-        "Họ và tên": "Lê Văn D",
+        "Họ và tên": "Lê Hoàng Cường",
         "Tổ": "Tổ 3",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -88,7 +87,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 7,
-        "Họ và tên": "Phạm Thị E",
+        "Họ và tên": "Phạm Minh Đức",
         "Tổ": "Tổ 3",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -96,7 +95,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 8,
-        "Họ và tên": "Hoàng Văn F",
+        "Họ và tên": "Vũ Thu Trang",
         "Tổ": "Tổ 4",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -104,7 +103,7 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 9,
-        "Họ và tên": "Vũ Thị G",
+        "Họ và tên": "Hoàng Văn Nam",
         "Tổ": "Tổ 4",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
@@ -113,37 +112,53 @@ DEFAULT_STUDENTS = [
 ]
 
 
+def clean_dataframe(df):
+    if df.empty:
+        return df
+
+    # Làm sạch tên các cột
+    df.columns = [str(c).strip() for c in df.columns]
+
+    required_cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua"]
+    for col in required_cols:
+        if col not in df.columns:
+            return pd.DataFrame()
+
+    df["Tổ"] = df["Tổ"].astype(str).str.strip()
+    df["Họ và tên"] = df["Họ và tên"].astype(str).str.strip()
+    df["Điểm thi đua"] = (
+        pd.to_numeric(df["Điểm thi đua"], errors="coerce").fillna(100).astype(int)
+    )
+
+    if "Lỗi vi phạm" in df.columns:
+        df["Lỗi vi phạm"] = df["Lỗi vi phạm"].fillna("None").astype(str)
+    else:
+        df["Lỗi vi phạm"] = "None"
+
+    df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
+    return df
+
+
 def load_data():
     if API_URL.startswith("http"):
         try:
             res = requests.get(API_URL, timeout=5)
             data = res.json()
             if len(data) > 1:
-                headers = data[0]
+                headers = [str(h).strip() for h in data[0]]
                 rows = data[1:]
                 df = pd.DataFrame(rows, columns=headers)
-                df["Điểm thi đua"] = (
-                    pd.to_numeric(df["Điểm thi đua"], errors="coerce")
-                    .fillna(100)
-                    .astype(int)
-                )
-                df["Lỗi vi phạm"] = df["Lỗi vi phạm"].fillna("None").astype(str)
-                df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-                return df
+                df = clean_dataframe(df)
+                if not df.empty:
+                    return df
         except Exception:
             pass
 
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
-            if not df.empty and "Họ và tên" in df.columns:
-                df["Điểm thi đua"] = (
-                    pd.to_numeric(df["Điểm thi đua"], errors="coerce")
-                    .fillna(100)
-                    .astype(int)
-                )
-                df["Lỗi vi phạm"] = df["Lỗi vi phạm"].fillna("None").astype(str)
-                df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
+            df = clean_dataframe(df)
+            if not df.empty:
                 return df
         except Exception:
             pass
@@ -202,15 +217,15 @@ chuc_nang = st.sidebar.radio(
 if st.sidebar.button("🔄 Cập nhật dữ liệu mới nhất"):
     st.rerun()
 
-# Lọc danh sách theo Tổ
+# Lọc danh sách thông minh (chống lỗi khoảng trắng)
 if "Tổ 1" in vai_tro:
-    df_view = df[df["Tổ"] == "Tổ 1"]
+    df_view = df[df["Tổ"].str.contains("1", na=False)]
 elif "Tổ 2" in vai_tro:
-    df_view = df[df["Tổ"] == "Tổ 2"]
+    df_view = df[df["Tổ"].str.contains("2", na=False)]
 elif "Tổ 3" in vai_tro:
-    df_view = df[df["Tổ"] == "Tổ 3"]
+    df_view = df[df["Tổ"].str.contains("3", na=False)]
 elif "Tổ 4" in vai_tro:
-    df_view = df[df["Tổ"] == "Tổ 4"]
+    df_view = df[df["Tổ"].str.contains("4", na=False)]
 else:
     df_view = df
 
@@ -261,15 +276,21 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                 st.rerun()
     else:
         st.warning("⚠️ Không tìm thấy học sinh thuộc tổ này trong hệ thống!")
+        if "Tổ" in df.columns:
+            st.info(
+                f"💡 Dữ liệu hiện tại đang ghi nhận cột Tổ gồm: {df['Tổ'].unique().tolist()}"
+            )
 
     st.subheader("📋 Bảng điểm học sinh thuộc quyền quản lý:")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
-    st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
+    valid_cols = [c for c in cols if c in df_view.columns]
+    st.dataframe(df_view[valid_cols], use_container_width=True, hide_index=True)
 
 elif chuc_nang == "📊 Bảng Tổng Hợp Lớp":
     st.title("📊 BẢNG TỔNG HỢP THI ĐUA TOÀN LỚP")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
-    st.dataframe(df[cols], use_container_width=True, hide_index=True)
+    valid_cols = [c for c in cols if c in df.columns]
+    st.dataframe(df[valid_cols], use_container_width=True, hide_index=True)
 
 elif chuc_nang == "📬 Tải File Báo Cáo":
     st.title("📬 TẢI BÁO CÁO THI ĐUA")
