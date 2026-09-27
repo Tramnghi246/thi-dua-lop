@@ -55,56 +55,16 @@ DEFAULT_STUDENTS = [
     },
     {
         "STT": 3,
-        "Họ và tên": "Ngô Gia Hân",
-        "Tổ": "Tổ 1",
+        "Họ và tên": "Nguyễn Tuyền An",
+        "Tổ": "Tổ 2",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
         "Lỗi vi phạm": "None",
     },
     {
         "STT": 4,
-        "Họ và tên": "Nguyễn Văn An",
-        "Tổ": "Tổ 2",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 5,
-        "Họ và tên": "Trần Thị Bình",
-        "Tổ": "Tổ 2",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 6,
-        "Họ và tên": "Lê Hoàng Cường",
+        "Họ và tên": "Lê Minh Thái Dương",
         "Tổ": "Tổ 3",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 7,
-        "Họ và tên": "Phạm Minh Đức",
-        "Tổ": "Tổ 3",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 8,
-        "Họ và tên": "Vũ Thu Trang",
-        "Tổ": "Tổ 4",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 9,
-        "Họ và tên": "Hoàng Văn Nam",
-        "Tổ": "Tổ 4",
         "Điểm thi đua": 100,
         "Xếp loại": "Tốt",
         "Lỗi vi phạm": "None",
@@ -115,14 +75,22 @@ DEFAULT_STUDENTS = [
 def clean_dataframe(df):
     if df.empty:
         return df
+
+    # Xóa khoảng trắng ở tên cột
     df.columns = [str(c).strip() for c in df.columns]
     required_cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua"]
     for col in required_cols:
         if col not in df.columns:
             return pd.DataFrame()
 
-    df["Tổ"] = df["Tổ"].astype(str).str.strip()
+    # LOẠI BỎ TẤT CẢ CÁC DÒNG RÁC / TRỐNG (None, nan, rỗng)
+    df = df.dropna(subset=["Họ và tên"])
     df["Họ và tên"] = df["Họ và tên"].astype(str).str.strip()
+    df = df[
+        ~df["Họ và tên"].str.lower().isin(["none", "nan", "", "null", "none (none)"])
+    ]
+
+    df["Tổ"] = df["Tổ"].astype(str).str.strip()
     df["Điểm thi đua"] = (
         pd.to_numeric(df["Điểm thi đua"], errors="coerce")
         .fillna(100)
@@ -135,7 +103,7 @@ def clean_dataframe(df):
         df["Lỗi vi phạm"] = "None"
 
     df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-    return df
+    return df.reset_index(drop=True)
 
 
 def load_data():
@@ -199,26 +167,25 @@ DANH_SACH_LOI = {
 # TIÊU ĐỀ TRANG CHÍNH
 st.title("🏆 QUẢN LÝ THI ĐUA LỚP HỌC")
 
-# ĐƯA BỘ CHỌN TỔ RA NGAY TRANG CHÍNH DỄ NHÌN TRÊN ĐIỆN THOẠI
 col_to, col_btn = st.columns([3, 1])
 with col_to:
     vai_tro = st.selectbox(
-        "🔐 BẠN LÀ AI? (Chọn đúng Tổ của bạn):",
+        "🔐 BẠN LÀ AI? (Chọn vai trò của bạn):",
         [
+            "👑 Giáo viên chủ nhiệm (Toàn lớp)",
             "Tổ trưởng Tổ 1",
             "Tổ trưởng Tổ 2",
             "Tổ trưởng Tổ 3",
             "Tổ trưởng Tổ 4",
-            "👑 Giáo viên chủ nhiệm (Xem tất cả)",
         ],
     )
 with col_btn:
     st.write("")
     st.write("")
-    if st.button("🔄 Cập nhật"):
+    if st.button("🔄 Cập nhật dữ liệu"):
         st.rerun()
 
-# Lọc danh sách học sinh theo Tổ được chọn
+# Lọc danh sách học sinh theo vai trò
 if "Tổ 1" in vai_tro:
     df_view = df[df["Tổ"].str.contains("1", na=False)]
 elif "Tổ 2" in vai_tro:
@@ -230,7 +197,6 @@ elif "Tổ 4" in vai_tro:
 else:
     df_view = df
 
-# Chọn chức năng phụ
 chuc_nang = st.sidebar.radio(
     "Chức năng:",
     ["📝 Ghi Nhận Thi Đua", "📊 Bảng Tổng Hợp Lớp", "📬 Tải File Báo Cáo"],
@@ -253,7 +219,7 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                 )
                 ghi_chu = st.text_input("✏️ Ghi chú (môn/tiết...):")
 
-            submit = st.form_submit_button("💾 LƯU ĐIỂM")
+            submit = st.form_submit_button("💾 LƯU ĐIỂM SỐ")
 
             if submit:
                 idx = df[df["Họ và tên"] == ten_hs].index[0]
@@ -281,9 +247,9 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                 )
                 st.rerun()
     else:
-        st.warning("⚠️ Không tìm thấy học sinh thuộc tổ này trong hệ thống!")
+        st.warning("⚠️ Không tìm thấy dữ liệu học sinh!")
 
-    st.subheader("📋 Danh sách học sinh thuộc Tổ:")
+    st.subheader("📋 Bảng điểm học sinh thuộc quyền quản lý:")
     cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
     valid_cols = [c for c in cols if c in df_view.columns]
     st.dataframe(df_view[valid_cols], use_container_width=True, hide_index=True)
