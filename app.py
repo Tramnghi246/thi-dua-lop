@@ -15,7 +15,7 @@ st.markdown(
 
 # -------------------------------------------------------------
 # DÁN URL GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP BÊN DƯỚI:
-API_URL = "https://script.google.com/macros/s/DÁN_LINK_CỦA_BẠN_VÀO_ĐÂY/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbyH2ok5WSMLG6aIQlnbwWUU9LrxE_JQFrpXM9rSPl9I9DwF9swI1VF664DuNEBVigOgkQ/exec"
 # -------------------------------------------------------------
 
 
