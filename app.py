@@ -1,5 +1,6 @@
-import os
+import json
 import pandas as pd
+import requests
 import streamlit as st
 
 # Cấu hình trang
@@ -7,16 +8,101 @@ st.set_page_config(
     page_title="Hệ Thống Thi Đua Lớp Học", layout="wide", page_icon="🏆"
 )
 
-# Chặn Google Dịch can thiệp gây lỗi giao diện
 st.markdown(
     '<head><meta name="google" content="notranslate"></head>',
     unsafe_allow_html=True,
 )
 
-DATA_FILE = "du_lieu_thi_dua.csv"
+# -------------------------------------------------------------
+# DÁN URL GOOGLE APPS SCRIPT CỦA BẠN VÀO GIỮA DẤU NGOẶC KÉP BÊN DƯỚI:
+API_URL = "https://script.google.com/macros/s/DÁN_LINK_CỦA_BẠN_VÀO_ĐÂY/exec"
+# -------------------------------------------------------------
 
 
-# Hàm tính xếp loại chuẩn
+# Tải dữ liệu từ Google Sheets
+def load_data():
+    try:
+        res = requests.get(API_URL, timeout=10)
+        data = res.json()
+        if len(data) > 1:
+            headers = data[0]
+            rows = data[1:]
+            df = pd.DataFrame(rows, columns=headers)
+            df["Điểm thi đua"] = (
+                pd.to_numeric(df["Điểm thi đua"], errors="coerce")
+                .fillna(100)
+                .astype(int)
+            )
+            df["Lỗi vi phạm"] = df["Lỗi vi phạm"].fillna("").astype(str)
+            return df
+    except Exception:
+        pass
+
+    default_data = [
+        {
+            "STT": 1,
+            "Họ và tên": "Nguyễn Văn An",
+            "Tổ": "Tổ 1",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 2,
+            "Họ và tên": "Trần Thị Bình",
+            "Tổ": "Tổ 1",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 3,
+            "Họ và tên": "Lê Hoàng Cường",
+            "Tổ": "Tổ 2",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 4,
+            "Họ và tên": "Phạm Minh Đức",
+            "Tổ": "Tổ 2",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 5,
+            "Họ và tên": "Vũ Thu Trang",
+            "Tổ": "Tổ 3",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+        {
+            "STT": 6,
+            "Họ và tên": "Hoàng Văn Nam",
+            "Tổ": "Tổ 4",
+            "Điểm thi đua": 100,
+            "Xếp loại": "Tốt",
+            "Lỗi vi phạm": "",
+        },
+    ]
+    return pd.DataFrame(default_data)
+
+
+# Lưu dữ liệu trực tiếp lên Google Sheets
+def save_data(df):
+    try:
+        headers = df.columns.tolist()
+        values = [headers] + df.astype(str).values.tolist()
+        json_str = json.dumps(values)
+        requests.get(API_URL, params={"action": "write", "data": json_str})
+        return True
+    except Exception:
+        return False
+
+
 def tinh_xep_loai(diem):
     try:
         diem = float(diem)
@@ -33,80 +119,8 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 
-# Đọc dữ liệu trực tiếp từ tệp CSV (không lưu cứng trong bộ nhớ)
-def load_data():
-    data_default = [
-        {
-            "STT": 1,
-            "Họ và tên": "Nguyễn Văn An",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-        {
-            "STT": 2,
-            "Họ và tên": "Trần Thị Bình",
-            "Tổ": "Tổ 1",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-        {
-            "STT": 3,
-            "Họ và tên": "Lê Hoàng Cường",
-            "Tổ": "Tổ 2",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-        {
-            "STT": 4,
-            "Họ và tên": "Phạm Minh Đức",
-            "Tổ": "Tổ 2",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-        {
-            "STT": 5,
-            "Họ và tên": "Vũ Thu Trang",
-            "Tổ": "Tổ 3",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-        {
-            "STT": 6,
-            "Họ và tên": "Hoàng Văn Nam",
-            "Tổ": "Tổ 4",
-            "Điểm thi đua": 100,
-            "Lỗi vi phạm": "",
-        },
-    ]
-
-    if os.path.exists(DATA_FILE):
-        try:
-            df = pd.read_csv(DATA_FILE)
-            if not df.empty and "Họ và tên" in df.columns:
-                df["Điểm thi đua"] = (
-                    pd.to_numeric(df["Điểm thi đua"], errors="coerce")
-                    .fillna(100)
-                    .astype(int)
-                )
-                df["Lỗi vi phạm"] = (
-                    df["Lỗi vi phạm"].fillna("").astype(str)
-                )
-                df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-                return df
-        except Exception:
-            pass
-
-    df = pd.DataFrame(data_default)
-    df["Xếp loại"] = df["Điểm thi đua"].apply(tinh_xep_loai)
-    df.to_csv(DATA_FILE, index=False)
-    return df
-
-
-# Tải dữ liệu mới nhất mỗi lần thao tác
 df = load_data()
 
-# Danh mục điểm cộng / trừ
 DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
     "💯 Đạt điểm 9, 10 (+2 điểm)": 2,
@@ -122,7 +136,6 @@ DANH_SACH_LOI = {
 
 st.title("🏆 HỆ THỐNG QUẢN LÝ THI ĐUA LỚP HỌC")
 
-# Thanh điều hướng vai trò
 st.sidebar.title("🔐 ĐĂNG NHẬP VAI TRÒ")
 vai_tro = st.sidebar.selectbox(
     "Bạn là ai?",
@@ -135,8 +148,7 @@ vai_tro = st.sidebar.selectbox(
     ],
 )
 
-# Nút đồng bộ dữ liệu nhanh
-if st.sidebar.button("🔄 Cập nhật dữ liệu mới nhất"):
+if st.sidebar.button("🔄 Làm mới dữ liệu"):
     st.rerun()
 
 if "Tổ 1" in vai_tro:
@@ -191,12 +203,14 @@ if not df_view.empty:
                 else:
                     df.at[idx, "Lỗi vi phạm"] = f"{old_log} | {log_text}"
 
-                # Ghi trực tiếp vào file CSV chung
-                df.to_csv(DATA_FILE, index=False)
-                st.success(
-                    f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
-                )
-                st.rerun()
+                with st.spinner("Đang lưu đồng bộ lên Google Sheets..."):
+                    if save_data(df):
+                        st.success(
+                            f"✅ Đã lưu điểm cho em {ten_hs} (Điểm mới: {new_score})"
+                        )
+                        st.rerun()
+                    else:
+                        st.error("Không thể kết nối Google Sheets!")
 
 cols = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]
 st.dataframe(df_view[cols], use_container_width=True, hide_index=True)
