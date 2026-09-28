@@ -18,7 +18,7 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK KẾT THÚC BẰNG /exec VÀO ĐÂY:
-API_URL = "DÁN_LINK_CỦA_BẠN_VÀO_ĐÂY"
+API_URL = "https://script.google.com/macros/s/AKfycbx8kmv2vtpa1H87nPcsLz0x51AHT_u9tp6ZlFzTSnHeJqIUUzqYGLgJFCnwEjWSMvnc/exec"
 # --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
