@@ -23,7 +23,10 @@ API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvT
 # --------------------------------------------------------------------------
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0"
 }
 
 def tinh_xep_loai(diem):
@@ -59,18 +62,19 @@ DEFAULT_STUDENTS = [
     },
 ]
 
-# ĐỌC TRỰC TIẾP TỪ GOOGLE SHEET - KHÔNG DÙNG FILE CSV
+# HÀM TẢI DỮ LIỆU CƯỠNG BỨC LÀM MỚI (CHỐNG TRÙNG CACHE)
 def load_data():
     if API_URL and "/exec" in API_URL:
         try:
-            timestamp = int(time.time())
-            res = requests.get(f"{API_URL}?t={timestamp}", headers=HEADERS, timeout=10)
+            # Sinh mã ngẫu nhiên theo mili-giây để Google Sheet buộc phải trả dữ liệu mới nhất
+            unique_time = int(time.time() * 1000)
+            res = requests.get(f"{API_URL}?nocache={unique_time}", headers=HEADERS, timeout=10)
             if res.status_code == 200:
                 data = res.json()
                 if isinstance(data, list) and len(data) > 1:
                     return pd.DataFrame(data[1:], columns=data[0])
         except Exception as e:
-            st.error(f"Lỗi kết nối máy chủ dữ liệu: {e}")
+            st.error(f"Lỗi tải dữ liệu: {e}")
 
     return pd.DataFrame(DEFAULT_STUDENTS)
 
@@ -85,6 +89,7 @@ def update_student_gsheet(name, score, xeploai, log_text):
             "score": score,
             "xeploai": xeploai,
             "log": log_text,
+            "nocache": int(time.time() * 1000)
         }
         res = requests.get(
             API_URL, params=params, headers=HEADERS, timeout=12, allow_redirects=True
@@ -98,13 +103,17 @@ def update_student_gsheet(name, score, xeploai, log_text):
                 else:
                     return False, f"Google Sheet phản hồi: {result.get('status')}"
             except Exception:
-                return False, "Google trả về lỗi đăng nhập. Vui lòng kiểm tra quyền Anyone trên script."
+                return False, "Google trả về phản hồi không hợp lệ."
         else:
             return False, f"Mã lỗi HTTP: {res.status_code}"
     except Exception as e:
         return False, str(e)
 
-df = load_data()
+# Khởi tạo hoặc lấy dữ liệu từ phiên làm việc
+if "data_table" not in st.session_state:
+    st.session_state["data_table"] = load_data()
+
+df = st.session_state["data_table"]
 
 DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
@@ -136,17 +145,23 @@ with col_to:
 with col_btn:
     st.write("")
     st.write("")
+    # Nút bấm ép máy chủ tải lại toàn bộ và xóa sạch dữ liệu cũ
     if st.button("🔄 Tải lại dữ liệu"):
+        st.cache_data.clear()
+        st.session_state["data_table"] = load_data()
         st.rerun()
 
-if "Tổ 1" in vai_tro:
-    df_view = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
-elif "Tổ 2" in vai_tro:
-    df_view = df[df["Tổ"].astype(str).str.contains("2", na=False)].copy()
-elif "Tổ 3" in vai_tro:
-    df_view = df[df["Tổ"].astype(str).str.contains("3", na=False)].copy()
-elif "Tổ 4" in vai_tro:
-    df_view = df[df["Tổ"].astype(str).str.contains("4", na=False)].copy()
+if not df.empty and "Tổ" in df.columns:
+    if "Tổ 1" in vai_tro:
+        df_view = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
+    elif "Tổ 2" in vai_tro:
+        df_view = df[df["Tổ"].astype(str).str.contains("2", na=False)].copy()
+    elif "Tổ 3" in vai_tro:
+        df_view = df[df["Tổ"].astype(str).str.contains("3", na=False)].copy()
+    elif "Tổ 4" in vai_tro:
+        df_view = df[df["Tổ"].astype(str).str.contains("4", na=False)].copy()
+    else:
+        df_view = df.copy()
 else:
     df_view = df.copy()
 
@@ -194,6 +209,8 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                         ok, msg = update_student_gsheet(ten_hs, new_score, xeploai_moi, full_log)
 
                     if ok:
+                        # Sau khi lưu xong, cập nhật ngay bảng tạm và tải mới
+                        st.session_state["data_table"] = load_data()
                         st.success(f"🎉 ĐÃ CẬP NHẬT THÀNH CÔNG CHO EM {ten_hs}!")
                         st.rerun()
                     else:
