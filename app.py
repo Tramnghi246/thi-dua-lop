@@ -1,15 +1,13 @@
 import io
-import json
-import os
 import time
 import pandas as pd
 import requests
 import streamlit as st
 
 st.set_page_config(
-    page_title="Hệ Thống Thi Đua Lớp Học", 
-    layout="wide", 
-    page_icon="🏆"
+    page_title="Hệ Thống Thi Đua Lớp Học",
+    layout="wide",
+    page_icon="🏆",
 )
 
 st.markdown(
@@ -19,15 +17,16 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK KẾT THÚC BẰNG /exec VÀO ĐÂY:
-API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvTfuz8wzuf45FLjnwOEQFvjVi5xt06nqNv0-0Ns1/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbxEZqtSfxtYO8yJ55iZW19B4Fm7-KL8SdHXlPZu5JXgWvgnM4_rJ8dsckSPNk-SISZM/exec"
 # --------------------------------------------------------------------------
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Cache-Control": "no-cache, no-store, must-revalidate",
     "Pragma": "no-cache",
-    "Expires": "0"
+    "Expires": "0",
 }
+
 
 def tinh_xep_loai(diem):
     try:
@@ -42,6 +41,7 @@ def tinh_xep_loai(diem):
         return "Trung bình"
     else:
         return "Yếu"
+
 
 DEFAULT_STUDENTS = [
     {
@@ -62,21 +62,24 @@ DEFAULT_STUDENTS = [
     },
 ]
 
-# HÀM TẢI DỮ LIỆU CƯỠNG BỨC LÀM MỚI (CHỐNG TRÙNG CACHE)
+# Tự động làm mới cache sau mỗi 10 giây để dữ liệu máy tính luôn đồng bộ
+@st.cache_data(ttl=10)
 def load_data():
     if API_URL and "/exec" in API_URL:
         try:
-            # Sinh mã ngẫu nhiên theo mili-giây để Google Sheet buộc phải trả dữ liệu mới nhất
-            unique_time = int(time.time() * 1000)
-            res = requests.get(f"{API_URL}?nocache={unique_time}", headers=HEADERS, timeout=10)
+            timestamp = int(time.time() * 1000)
+            res = requests.get(
+                f"{API_URL}?nocache={timestamp}", headers=HEADERS, timeout=12
+            )
             if res.status_code == 200:
                 data = res.json()
                 if isinstance(data, list) and len(data) > 1:
                     return pd.DataFrame(data[1:], columns=data[0])
         except Exception as e:
-            st.error(f"Lỗi tải dữ liệu: {e}")
+            st.error(f"Lỗi tải dữ liệu trực tiếp: {e}")
 
     return pd.DataFrame(DEFAULT_STUDENTS)
+
 
 def update_student_gsheet(name, score, xeploai, log_text):
     if not API_URL or "/exec" not in API_URL:
@@ -89,10 +92,10 @@ def update_student_gsheet(name, score, xeploai, log_text):
             "score": score,
             "xeploai": xeploai,
             "log": log_text,
-            "nocache": int(time.time() * 1000)
+            "nocache": int(time.time() * 1000),
         }
         res = requests.get(
-            API_URL, params=params, headers=HEADERS, timeout=12, allow_redirects=True
+            API_URL, params=params, headers=HEADERS, timeout=15, allow_redirects=True
         )
 
         if res.status_code == 200:
@@ -101,19 +104,16 @@ def update_student_gsheet(name, score, xeploai, log_text):
                 if result.get("status") == "success":
                     return True, "Thành công"
                 else:
-                    return False, f"Google Sheet phản hồi: {result.get('status')}"
+                    return False, f"Google Sheet báo: {result.get('status')}"
             except Exception:
-                return False, "Google trả về phản hồi không hợp lệ."
+                return False, "Google trả về mã phản hồi HTML (kiểm tra quyền Anyone)."
         else:
             return False, f"Mã lỗi HTTP: {res.status_code}"
     except Exception as e:
         return False, str(e)
 
-# Khởi tạo hoặc lấy dữ liệu từ phiên làm việc
-if "data_table" not in st.session_state:
-    st.session_state["data_table"] = load_data()
 
-df = st.session_state["data_table"]
+df = load_data()
 
 DANH_SACH_LOI = {
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
@@ -145,10 +145,8 @@ with col_to:
 with col_btn:
     st.write("")
     st.write("")
-    # Nút bấm ép máy chủ tải lại toàn bộ và xóa sạch dữ liệu cũ
     if st.button("🔄 Tải lại dữ liệu"):
         st.cache_data.clear()
-        st.session_state["data_table"] = load_data()
         st.rerun()
 
 if not df.empty and "Tổ" in df.columns:
@@ -205,12 +203,11 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                     else:
                         full_log = f"{old_log} | {log_text}"
 
-                    with st.spinner("Đang gửi dữ liệu lên Google Sheets..."):
+                    with st.spinner("Đang lưu trực tiếp lên Google Sheets..."):
                         ok, msg = update_student_gsheet(ten_hs, new_score, xeploai_moi, full_log)
 
                     if ok:
-                        # Sau khi lưu xong, cập nhật ngay bảng tạm và tải mới
-                        st.session_state["data_table"] = load_data()
+                        st.cache_data.clear()
                         st.success(f"🎉 ĐÃ CẬP NHẬT THÀNH CÔNG CHO EM {ten_hs}!")
                         st.rerun()
                     else:
@@ -225,13 +222,16 @@ elif chuc_nang == "📊 Bảng Tổng Hợp Lớp":
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif chuc_nang == "📬 Tải File Báo Cáo":
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="ThiDua")
-    buffer.seek(0)
-    st.download_button(
-        label="📥 Tải xuống file Excel",
-        data=buffer,
-        file_name="Bao_Cao_Thi_Dua.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    if not df.empty:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="ThiDua")
+        buffer.seek(0)
+        st.download_button(
+            label="📥 Tải xuống file Excel",
+            data=buffer,
+            file_name="Bao_Cao_Thi_Dua.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    else:
+        st.warning("Chưa có dữ liệu để xuất file.")
