@@ -19,7 +19,7 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK KẾT THÚC BẰNG /exec VÀO ĐÂY:
-API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvTfuz8wzuf45FLjnwOEQFvjVi5xt06nqNv0-0Ns1/execY"
+API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvTfuz8wzuf45FLjnwOEQFvjVi5xt06nqNv0-0Ns1/exec"
 # --------------------------------------------------------------------------
 
 HEADERS = {
