@@ -6,8 +6,11 @@ import requests
 import streamlit as st
 
 st.set_page_config(
-    page_title="Hệ Thống Thi Đua Lớp Học", layout="wide", page_icon="🏆"
+    page_title="Hệ Thống Thi Đua Lớp Học", 
+    layout="wide", 
+    page_icon="🏆"
 )
+
 st.markdown(
     '<head><meta name="google" content="notranslate"></head>',
     unsafe_allow_html=True,
@@ -15,7 +18,7 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK KẾT THÚC BẰNG /exec VÀO ĐÂY:
-API_URL = "https://script.google.com/macros/s/AKfycbx8kmv2vtpa1H87nPcsLz0x51AHT_u9tp6ZlFzTSnHeJqIUUzqYGLgJFCnwEjWSMvnc/exec"
+API_URL = "DÁN_LINK_CỦA_BẠN_VÀO_ĐÂY"
 # --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
@@ -154,13 +157,13 @@ with col_btn:
         st.rerun()
 
 if "Tổ 1" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("1", na=False)].copy()
+    df_view = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("2", na=False)].copy()
+    df_view = df[df["Tổ"].astype(str).str.contains("2", na=False)].copy()
 elif "Tổ 3" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("3", na=False)].copy()
+    df_view = df[df["Tổ"].astype(str).str.contains("3", na=False)].copy()
 elif "Tổ 4" in vai_tro:
-    df_view = df[df["Tổ"].str.contains("4", na=False)].copy()
+    df_view = df[df["Tổ"].astype(str).str.contains("4", na=False)].copy()
 else:
     df_view = df.copy()
 
