@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import time
 import pandas as pd
 import requests
 import streamlit as st
@@ -18,14 +19,12 @@ st.markdown(
 
 # --------------------------------------------------------------------------
 # DÁN LINK KẾT THÚC BẰNG /exec VÀO ĐÂY:
-API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvTfuz8wzuf45FLjnwOEQFvjVi5xt06nqNv0-0Ns1/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbxS-qgLDyrJWcZDo_-mlFCbr-LVvTfuz8wzuf45FLjnwOEQFvjVi5xt06nqNv0-0Ns1/execY"
 # --------------------------------------------------------------------------
 
-DATA_FILE = "du_lieu_thi_dua.csv"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
-
 
 def tinh_xep_loai(diem):
     try:
@@ -40,7 +39,6 @@ def tinh_xep_loai(diem):
         return "Trung bình"
     else:
         return "Yếu"
-
 
 DEFAULT_STUDENTS = [
     {
@@ -61,28 +59,20 @@ DEFAULT_STUDENTS = [
     },
 ]
 
-
+# ĐỌC TRỰC TIẾP TỪ GOOGLE SHEET - KHÔNG DÙNG FILE CSV
 def load_data():
     if API_URL and "/exec" in API_URL:
         try:
-            res = requests.get(API_URL, headers=HEADERS, timeout=10)
+            timestamp = int(time.time())
+            res = requests.get(f"{API_URL}?t={timestamp}", headers=HEADERS, timeout=10)
             if res.status_code == 200:
                 data = res.json()
                 if isinstance(data, list) and len(data) > 1:
-                    df_temp = pd.DataFrame(data[1:], columns=data[0])
-                    df_temp.to_csv(DATA_FILE, index=False)
-                    return df_temp
-        except Exception:
-            pass
-
-    if os.path.exists(DATA_FILE):
-        try:
-            return pd.read_csv(DATA_FILE)
-        except Exception:
-            pass
+                    return pd.DataFrame(data[1:], columns=data[0])
+        except Exception as e:
+            st.error(f"Lỗi kết nối máy chủ dữ liệu: {e}")
 
     return pd.DataFrame(DEFAULT_STUDENTS)
-
 
 def update_student_gsheet(name, score, xeploai, log_text):
     if not API_URL or "/exec" not in API_URL:
@@ -106,20 +96,13 @@ def update_student_gsheet(name, score, xeploai, log_text):
                 if result.get("status") == "success":
                     return True, "Thành công"
                 else:
-                    return (
-                        False,
-                        f"Google Sheet phản hồi lỗi: {result.get('status')}",
-                    )
+                    return False, f"Google Sheet phản hồi: {result.get('status')}"
             except Exception:
-                return (
-                    False,
-                    "Google trả về trang HTML thay vì JSON. Vui lòng kiểm tra quyền 'Bất kỳ ai' trên Google Script.",
-                )
+                return False, "Google trả về lỗi đăng nhập. Vui lòng kiểm tra quyền Anyone trên script."
         else:
             return False, f"Mã lỗi HTTP: {res.status_code}"
     except Exception as e:
         return False, str(e)
-
 
 df = load_data()
 
@@ -180,13 +163,9 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
             col1, col2 = st.columns(2)
             with col1:
                 ten_hs = st.selectbox("👤 Chọn học sinh:", student_list)
-                loi = st.selectbox(
-                    "📋 Nội dung thi đua:", list(DANH_SACH_LOI.keys())
-                )
+                loi = st.selectbox("📋 Nội dung thi đua:", list(DANH_SACH_LOI.keys()))
             with col2:
-                so_lan = st.number_input(
-                    "🔢 Số lần:", min_value=1, max_value=20, value=1
-                )
+                so_lan = st.number_input("🔢 Số lần:", min_value=1, max_value=20, value=1)
                 ghi_chu = st.text_input("✏️ Ghi chú (môn/tiết...):")
 
             submit = st.form_submit_button("💾 LƯU ĐIỂM SỐ")
@@ -196,19 +175,14 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                 if len(match_idx) > 0:
                     idx = match_idx[0]
                     diem_thay_doi = int(DANH_SACH_LOI[loi]) * int(so_lan)
-                    curr_score = pd.to_numeric(
-                        df.at[idx, "Điểm thi đua"], errors="coerce"
-                    )
+                    curr_score = pd.to_numeric(df.at[idx, "Điểm thi đua"], errors="coerce")
                     if pd.isna(curr_score):
                         curr_score = 100
                     new_score = int(curr_score) + diem_thay_doi
                     xeploai_moi = tinh_xep_loai(new_score)
 
                     loi_clean = loi.split(" (")[0]
-                    log_text = (
-                        f"{loi_clean} x{so_lan}"
-                        + (f" ({ghi_chu})" if ghi_chu else "")
-                    )
+                    log_text = f"{loi_clean} x{so_lan}" + (f" ({ghi_chu})" if ghi_chu else "")
                     old_log = str(df.at[idx, "Lỗi vi phạm"])
 
                     if old_log in ["None", "nan", "", "NaN"]:
@@ -217,18 +191,10 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                         full_log = f"{old_log} | {log_text}"
 
                     with st.spinner("Đang gửi dữ liệu lên Google Sheets..."):
-                        ok, msg = update_student_gsheet(
-                            ten_hs, new_score, xeploai_moi, full_log
-                        )
+                        ok, msg = update_student_gsheet(ten_hs, new_score, xeploai_moi, full_log)
 
                     if ok:
-                        df.at[idx, "Điểm thi đua"] = new_score
-                        df.at[idx, "Xếp loại"] = xeploai_moi
-                        df.at[idx, "Lỗi vi phạm"] = full_log
-                        df.to_csv(DATA_FILE, index=False)
-                        st.success(
-                            f"🎉 ĐÃ CẬP NHẬT THÀNH CÔNG CHO EM {ten_hs}!"
-                        )
+                        st.success(f"🎉 ĐÃ CẬP NHẬT THÀNH CÔNG CHO EM {ten_hs}!")
                         st.rerun()
                     else:
                         st.error(f"❌ CHƯA LƯU ĐƯỢC LÊN GOOGLE: {msg}")
