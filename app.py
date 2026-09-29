@@ -13,7 +13,7 @@ st.set_page_config(
 
 # --------------------------------------------------------------------------
 # DÁN LINK GOOGLE APPS SCRIPT KẾT THÚC BẰNG /exec VÀO GIỮA NGOẶC KÉP:
-API_URL = "https://script.google.com/macros/s/AKfycbxfHw_sQEW_mi8A6HWnms04cq4nmyCs9Wu1-tCNreFr1TFgXmRYWwgEN9AgjYaW1xJs/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbw_Yt7gpgQLVNVcQJFoVaNWLaKcLg89unWJzhQQUaGUKeJ1jOvqMJhn0Fwyp4T1nyp2/execc"
 # --------------------------------------------------------------------------
 
 DATA_FILE = "du_lieu_thi_dua.csv"
