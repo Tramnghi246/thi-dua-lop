@@ -45,17 +45,21 @@ DEFAULT_STUDENTS = [
     },
 ]
 
+# DANH MỤC THI ĐUA & VI PHẠM (ĐÃ BỔ SUNG ĐẦY ĐỦ CÁC MỤC MỚI)
 DANH_SACH_LOI = {
+    "🌸 Thầy cô tuyên dương (+2 điểm)": 2,
     "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
     "💯 Đạt điểm 9, 10 (+2 điểm)": 2,
+    "🤬 Nói tục (-5 điểm)": -5,
+    "📱 Làm việc riêng (-5 điểm)": -5,
+    "🔊 Nói chuyện trong giờ học (-2 điểm)": -2,
     "✉️ Nghỉ học có phép (-2 điểm)": -2,
     "⏰ Đi muộn (-5 điểm)": -5,
     "📚 Không học bài / Thiếu BTVN (-5 điểm)": -5,
     "👔 Không mặc đồng phục (-5 điểm)": -5,
-    "🔊 Mất trật tự trong giờ (-5 điểm)": -5,
     "🧹 Không vệ sinh, lao động (-5 điểm)": -5,
-    "📱 Sử dụng điện thoại (-10 điểm)": -10,
-    "🚨 Nghỉ học không phép (-15 điểm)": -15,
+    "📱 Sử dụng điện thoại (-15 điểm)": -15,
+    "🚨 Nghỉ học không phép (-5 điểm)": -5,
 }
 
 
@@ -210,7 +214,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Chức năng:")
 
-    # Menu tính năng (Chỉ Giáo viên mới thấy mục Quản Lý Tuần Học)
     danh_sach_menu = [
         "📝 Ghi Nhận Thi Đua",
         "📊 Bảng Tổng Hợp Lớp",
@@ -230,7 +233,6 @@ with st.sidebar:
 # KHU VỰC NỘI DUNG CHÍNH
 # ====================================================
 
-# Lọc theo tổ phụ trách
 if "Tổ 1" in vai_tro:
     df_role = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
@@ -268,7 +270,7 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
         c1, c2 = st.columns([2, 1])
         with c1:
             hs_chon = st.selectbox("👤 Chọn học sinh:", ds_lua_chon_hs)
-            loi_chon = st.selectbox("📋 Nội dung thi đua:", list(DANH_SACH_LOI.keys()))
+            loi_chon = st.selectbox("📋 Nội dung thi đua / Vi phạm:", list(DANH_SACH_LOI.keys()))
         with c2:
             so_lan = st.number_input("🔢 Số lần:", min_value=1, max_value=20, value=1)
             ghi_chu = st.text_input("✏️ Ghi chú (Môn/Tiết...):")
@@ -298,7 +300,6 @@ if chuc_nang == "📝 Ghi Nhận Thi Đua":
                     else:
                         full_log = f"{old_log} | {log_text}"
 
-                    # Cập nhật dữ liệu
                     df.at[idx, "Điểm thi đua"] = new_score
                     df.at[idx, "Xếp loại"] = xeploai_moi
                     df.at[idx, "Lỗi vi phạm"] = full_log
@@ -352,14 +353,12 @@ elif chuc_nang == "⚙️ Quản Lý Tuần Mới (Reset)":
     if st.button("🔄 BẮT ĐẦU TUẦN MỚI (RESET TOÀN LỚP)", type="primary"):
         if confirm_check:
             with st.spinner("Đang tiến hành đặt lại dữ liệu tuần mới..."):
-                # 1. Reset dữ liệu cục bộ
                 df["Điểm thi đua"] = 100
                 df["Xếp loại"] = "Tốt"
                 df["Lỗi vi phạm"] = "None"
                 df.to_csv(DATA_FILE, index=False)
                 st.session_state.df = df
 
-                # 2. Reset trên Google Sheets
                 if API_URL and "/exec" in API_URL:
                     ok, msg = reset_new_week_gsheet()
                     if not ok:
