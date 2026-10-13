@@ -18,7 +18,7 @@ st.set_page_config(
 API_URL = "https://script.google.com/macros/s/AKfycbwoy6GT8XEkwwrLTSXrIk3tMj6lzATeiwrw02cWYz7yEXDhzEtDOoyL8VssgXuJE08q/exec"
 DATA_FILE = "du_lieu_thi_dua.csv"
 
-# Tùy biến CSS giao diện phong cách Dashboard
+# CSS tùy biến giao diện trực quan
 st.markdown(
     """
     <style>
@@ -78,11 +78,12 @@ DANH_SACH_LOI = {
 }
 
 DEFAULT_STUDENTS = [
-    {"STT": 1, "Họ và tên": "Võ Huỳnh Minh An", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
-    {"STT": 2, "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
-    {"STT": 3, "Họ và tên": "Trần Quốc Bảo", "Tổ": "Tổ 2", "Điểm thi đua": 95, "Xếp loại": "Khá", "Lỗi vi phạm": "Đi muộn x1 (-1)"},
-    {"STT": 4, "Họ và tên": "Nguyễn Lê Hoàng Mai", "Tổ": "Tổ 3", "Điểm thi đua": 102, "Xếp loại": "Tốt", "Lỗi vi phạm": "Phát biểu x2 (+2)"},
-    {"STT": 5, "Họ và tên": "Lê Văn Tuấn", "Tổ": "Tổ 4", "Điểm thi đua": 85, "Xếp loại": "Khá", "Lỗi vi phạm": "Thiếu BTVN x3 (-15)"},
+    {"STT": 1, "Họ và tên": "Nguyễn Tuyền An", "Tổ": "Tổ 2", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
+    {"STT": 2, "Họ và tên": "Võ Huỳnh Minh An", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
+    {"STT": 3, "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
+    {"STT": 4, "Họ và tên": "Trần Quốc Bảo", "Tổ": "Tổ 2", "Điểm thi đua": 95, "Xếp loại": "Khá", "Lỗi vi phạm": "Đi muộn x1 (-1)"},
+    {"STT": 5, "Họ và tên": "Nguyễn Lê Hoàng Mai", "Tổ": "Tổ 3", "Điểm thi đua": 102, "Xếp loại": "Tốt", "Lỗi vi phạm": "Phát biểu x2 (+2)"},
+    {"STT": 6, "Họ và tên": "Lê Văn Tuấn", "Tổ": "Tổ 4", "Điểm thi đua": 85, "Xếp loại": "Khá", "Lỗi vi phạm": "Thiếu BTVN x3 (-15)"},
 ]
 
 # ==============================================================================
@@ -101,6 +102,35 @@ def tinh_xep_loai(diem):
         return "Trung bình"
     else:
         return "Yếu"
+
+def parse_item_info(item_str):
+    """Bóc tách thông tin một mục vi phạm để lấy điểm và số lần"""
+    diem_goc = 0
+    matched_loi = list(DANH_SACH_LOI.keys())[0]
+    so_lan = 1
+    ghi_chu = ""
+
+    # Trích xuất ghi chú nếu có dạng [...] hoặc (...)
+    if "[" in item_str and "]" in item_str:
+        ghi_chu = item_str[item_str.find("[") + 1 : item_str.rfind("]")].strip()
+    elif "(" in item_str and ")" in item_str and not any(k in item_str for k in ["(+", "(-"]):
+        ghi_chu = item_str[item_str.find("(") + 1 : item_str.rfind(")")].strip()
+
+    # Nhận diện loại lỗi
+    for ten_loi, diem in DANH_SACH_LOI.items():
+        ten_ngan = ten_loi.split(" (")[0]
+        if item_str.startswith(ten_ngan):
+            matched_loi = ten_loi
+            diem_goc = diem
+            if " x" in item_str:
+                try:
+                    so_lan = int(item_str.split(" x")[1].split(" ")[0].split("[")[0].split("(")[0])
+                except Exception:
+                    so_lan = 1
+            break
+
+    total_delta = diem_goc * so_lan
+    return matched_loi, so_lan, ghi_chu, total_delta
 
 def clean_dataframe(df_input):
     if df_input is None or df_input.empty:
@@ -186,7 +216,7 @@ def reset_new_week_gsheet():
     except Exception as e:
         return False, str(e)
 
-# Khởi tạo trạng thái session_state
+# Khởi tạo trạng thái
 if "df" not in st.session_state:
     st.session_state.df = load_data()
 
@@ -344,11 +374,11 @@ if chuc_nang == "📝 Ghi nhận điểm số":
     )
 
 # ==============================================================================
-# MÀN HÌNH 2: CHỈNH SỬA / XÓA TỪNG MỤC GHI NHẦM
+# MÀN HÌNH 2: CHỈNH SỬA / XÓA / THÊM TỪNG MỤC CHI TIẾT
 # ==============================================================================
 elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
     st.subheader("✏️ Chỉnh sửa & Khắc phục sai sót")
-    st.caption("Xóa từng mục ghi nhầm để hệ thống tự hoàn trả lại điểm, không làm mất các dữ liệu khác.")
+    st.caption("Xem danh sách lỗi, chỉnh sửa lại nội dung đã ghi sai hoặc hoàn trả điểm dễ dàng.")
 
     danh_sach_hien_thi = [
         f"#{row['STT']} - {row['Họ và tên']} ({row['Tổ']})"
@@ -379,59 +409,154 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
 
         st.markdown("#### 📋 Danh sách các mục đã ghi nhận trong tuần:")
 
+        # Tách danh sách lỗi theo dấu |
         if raw_log in ["None", "nan", "", "NaN"]:
             items_list = []
         else:
             items_list = [item.strip() for item in raw_log.split("|") if item.strip()]
 
         if not items_list:
-            st.info("Học sinh này hiện chưa có vi phạm hoặc điểm thưởng nào!")
+            st.info("💡 Học sinh này hiện chưa có vi phạm hoặc điểm thưởng nào!")
         else:
-            # Liệt kê từng mục kèm nút xóa riêng biệt
             for idx, item in enumerate(items_list):
-                c_text, c_del = st.columns([4, 1])
-                with c_text:
-                    st.markdown(f"**{idx + 1}.** `{item}`")
-                with c_del:
-                    if st.button("🗑️ Xóa mục này", key=f"del_item_{stt_target}_{idx}"):
-                        # 1. Nhận diện điểm hoàn trả theo danh mục chuẩn
-                        diem_hoan_tra = 0
-                        for ten_loi, diem_goc in DANH_SACH_LOI.items():
-                            ten_ngan = ten_loi.split(" (")[0]
-                            if item.startswith(ten_ngan):
-                                so_lan = 1
-                                if " x" in item:
-                                    try:
-                                        so_lan = int(item.split(" x")[1].split(" ")[0].split("[")[0])
-                                    except Exception:
-                                        so_lan = 1
-                                diem_hoan_tra = diem_goc * so_lan
-                                break
+                matched_loi, so_lan_old, ghi_chu_old, delta_old = parse_item_info(item)
+                color_score = "#16a34a" if delta_old > 0 else "#dc2626"
+                sign = "+" if delta_old > 0 else ""
+
+                with st.container(border=True):
+                    col_info, col_act1, col_act2 = st.columns([3.5, 1, 1])
+                    with col_info:
+                        st.markdown(
+                            f"**#{idx + 1}.** `{item}` &nbsp; "
+                            f"<span style='color:{color_score}; font-weight:700;'>({sign}{delta_old} điểm)</span>",
+                            unsafe_allow_html=True,
+                        )
+                    with col_act1:
+                        # Toggle trạng thái chỉnh sửa mục này
+                        edit_key = f"is_editing_{stt_target}_{idx}"
+                        if edit_key not in st.session_state:
+                            st.session_state[edit_key] = False
+
+                        if st.button("✏️ Sửa mục này", key=f"btn_toggle_{stt_target}_{idx}", use_container_width=True):
+                            st.session_state[edit_key] = not st.session_state[edit_key]
+                            st.rerun()
+
+                    with col_act2:
+                        if st.button("🗑️ Xóa bỏ", key=f"del_item_{stt_target}_{idx}", use_container_width=True):
+                            # Hoàn trả lại điểm cũ
+                            new_score = curr_score - delta_old
+                            new_rank = tinh_xep_loai(new_score)
+
+                            items_list.pop(idx)
+                            new_log = " | ".join(items_list) if items_list else "None"
+
+                            df.at[match_idx, "Điểm thi đua"] = new_score
+                            df.at[match_idx, "Xếp loại"] = new_rank
+                            df.at[match_idx, "Lỗi vi phạm"] = new_log
+                            df.to_csv(DATA_FILE, index=False)
+                            st.session_state.df = df
+
+                            if API_URL and "/exec" in API_URL:
+                                update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
+
+                            st.toast(f"Đã xóa mục và hoàn lại điểm!", icon="✅")
+                            time.sleep(0.8)
+                            st.rerun()
+
+                    # KHUNG FORM CHỈNH SỬA TẠI CHỖ KHI BẤM "SỬA"
+                    if st.session_state.get(f"is_editing_{stt_target}_{idx}", False):
+                        st.markdown("---")
+                        st.caption(f"🔧 Đang chỉnh sửa mục số {idx + 1}:")
+                        e_col1, e_col2 = st.columns([2, 1])
                         
-                        # 2. Hoàn trả lại điểm (trừ của điểm âm = cộng lại)
-                        new_score = curr_score - diem_hoan_tra
-                        new_rank = tinh_xep_loai(new_score)
+                        all_keys = list(DANH_SACH_LOI.keys())
+                        default_index = all_keys.index(matched_loi) if matched_loi in all_keys else 0
 
-                        # 3. Loại bỏ mục khỏi danh sách lỗi
-                        items_list.pop(idx)
-                        new_log = " | ".join(items_list) if items_list else "None"
+                        with e_col1:
+                            new_loi_selected = st.selectbox(
+                                "Chọn lại nội dung đúng:",
+                                all_keys,
+                                index=default_index,
+                                key=f"select_loi_{stt_target}_{idx}",
+                            )
+                            new_ghichu_edit = st.text_input(
+                                "Ghi chú sửa đổi:",
+                                value=ghi_chu_old,
+                                key=f"ghichu_edit_{stt_target}_{idx}",
+                            )
+                        with e_col2:
+                            new_solan_edit = st.number_input(
+                                "Số lần đúng:",
+                                min_value=1,
+                                max_value=20,
+                                value=int(so_lan_old),
+                                key=f"solan_edit_{stt_target}_{idx}",
+                            )
+                            st.write("")
+                            if st.button("💾 Lưu cập nhật mục này", type="primary", key=f"save_edit_{stt_target}_{idx}", use_container_width=True):
+                                # 1. Tính điểm mới
+                                new_delta = DANH_SACH_LOI[new_loi_selected] * int(new_solan_edit)
+                                score_diff = new_delta - delta_old  # Bù trừ chênh lệch điểm
+                                new_score = curr_score + score_diff
+                                new_rank = tinh_xep_loai(new_score)
 
-                        # 4. Ghi nhận dữ liệu mới
-                        df.at[match_idx, "Điểm thi đua"] = new_score
-                        df.at[match_idx, "Xếp loại"] = new_rank
-                        df.at[match_idx, "Lỗi vi phạm"] = new_log
-                        df.to_csv(DATA_FILE, index=False)
-                        st.session_state.df = df
+                                # 2. Tạo chuỗi log mới
+                                ten_rut_gon = new_loi_selected.split(" (")[0]
+                                new_item_str = f"{ten_rut_gon} x{new_solan_edit}" + (f" [{new_ghichu_edit}]" if new_ghichu_edit else "")
+                                items_list[idx] = new_item_str
+                                new_log = " | ".join(items_list)
 
-                        # 5. Đồng bộ Google Sheets
-                        if API_URL and "/exec" in API_URL:
-                            update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
+                                # 3. Lưu vào hệ thống
+                                df.at[match_idx, "Điểm thi đua"] = new_score
+                                df.at[match_idx, "Xếp loại"] = new_rank
+                                df.at[match_idx, "Lỗi vi phạm"] = new_log
+                                df.to_csv(DATA_FILE, index=False)
+                                st.session_state.df = df
 
-                        st.toast(f"Đã xóa thành công mục '{item}' và hoàn trả {abs(diem_hoan_tra)} điểm!", icon="✅")
-                        time.sleep(0.8)
-                        st.rerun()
+                                if API_URL and "/exec" in API_URL:
+                                    update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
 
-        # Phần can thiệp thủ công mở rộng
+                                st.session_state[f"is_editing_{stt_target}_{idx}"] = False
+                                st.success("Đã cập nhật mục sửa đổi thành công!")
+                                time.sleep(0.8)
+                                st.rerun()
+
+        st.markdown("---")
+
+        # KHUNG THÊM BỔ SUNG ĐIỂM/LỖI TRỰC TIẾP TẠI ĐÂY
+        with st.expander("➕ Ghi nhận thêm điểm thưởng / vi phạm ngay tại đây"):
+            a_col1, a_col2 = st.columns([2, 1])
+            with a_col1:
+                add_loi = st.selectbox("Nội dung cần thêm:", list(DANH_SACH_LOI.keys()), key=f"add_loi_{stt_target}")
+                add_note = st.text_input("Ghi chú kèm theo:", key=f"add_note_{stt_target}")
+            with a_col2:
+                add_times = st.number_input("Số lần:", min_value=1, max_value=20, value=1, key=f"add_times_{stt_target}")
+                st.write("")
+                if st.button("➕ Thêm vào hồ sơ", type="primary", key=f"btn_add_now_{stt_target}", use_container_width=True):
+                    add_delta = DANH_SACH_LOI[add_loi] * int(add_times)
+                    new_score = curr_score + add_delta
+                    new_rank = tinh_xep_loai(new_score)
+
+                    item_add_str = f"{add_loi.split(' (')[0]} x{add_times}" + (f" [{add_note}]" if add_note else "")
+                    if raw_log in ["None", "nan", "", "NaN"]:
+                        new_log = item_add_str
+                    else:
+                        new_log = f"{raw_log} | {item_add_str}"
+
+                    df.at[match_idx, "Điểm thi đua"] = new_score
+                    df.at[match_idx, "Xếp loại"] = new_rank
+                    df.at[match_idx, "Lỗi vi phạm"] = new_log
+                    df.to_csv(DATA_FILE, index=False)
+                    st.session_state.df = df
+
+                    if API_URL and "/exec" in API_URL:
+                        update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
+
+                    st.toast("Đã thêm mục mới thành công!", icon="✅")
+                    time.sleep(0.8)
+                    st.rerun()
+
+        # KHUNG CAN THIỆP SỬA ĐIỂM THỦ CÔNG
         with st.expander("🛠️ Can thiệp sửa điểm thủ công (tùy chỉnh nâng cao)"):
             c_s1, c_s2 = st.columns(2)
             with c_s1:
