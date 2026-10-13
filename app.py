@@ -5,64 +5,100 @@ import pandas as pd
 import requests
 import streamlit as st
 
+# ==============================================================================
+# CẤU HÌNH TRANG & GIAO DIỆN HIỆN ĐẠI
+# ==============================================================================
 st.set_page_config(
-    page_title="Hệ Thống Thi Đua Lớp Học",
+    page_title="Hệ Thống Thi Đua Học Đường",
+    page_icon="🎓",
     layout="wide",
-    page_icon="🏆",
+    initial_sidebar_state="expanded",
 )
 
-# --------------------------------------------------------------------------
-# DÁN LINK GOOGLE APPS SCRIPT KẾT THÚC BẰNG /exec VÀO GIỮA NGOẶC KÉP:
 API_URL = "https://script.google.com/macros/s/AKfycbwoy6GT8XEkwwrLTSXrIk3tMj6lzATeiwrw02cWYz7yEXDhzEtDOoyL8VssgXuJE08q/exec"
-# --------------------------------------------------------------------------
-
 DATA_FILE = "du_lieu_thi_dua.csv"
 
-DEFAULT_STUDENTS = [
-    {
-        "STT": 1,
-        "Họ và tên": "Võ Huỳnh Minh An",
-        "Tổ": "Tổ 1",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 2,
-        "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân",
-        "Tổ": "Tổ 1",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-    {
-        "STT": 3,
-        "Họ và tên": "Trần Quốc Bảo",
-        "Tổ": "Tổ 2",
-        "Điểm thi đua": 100,
-        "Xếp loại": "Tốt",
-        "Lỗi vi phạm": "None",
-    },
-]
+# Custom CSS cho giao diện phong cách Dashboard cao cấp
+st.markdown(
+    """
+    <style>
+        /* Toàn bộ bố cục và font */
+        .main {
+            background-color: #f8fafc;
+        }
+        
+        /* Metric card */
+        .stat-card {
+            background: white;
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        
+        /* Custom Table & Badges */
+        .badge-tot { background-color: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 12px; }
+        .badge-kha { background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 12px; }
+        .badge-tb { background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 12px; }
+        .badge-yeu { background-color: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 12px; }
+        
+        /* Nút bấm tinh chỉnh */
+        .stButton>button {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-# DANH MỤC THI ĐUA & VI PHẠM (ĐÃ BỔ SUNG ĐẦY ĐỦ CÁC MỤC MỚI)
+# ==============================================================================
+# DANH MỤC & DỮ LIỆU MẶC ĐỊNH
+# ==============================================================================
 DANH_SACH_LOI = {
-    "🌸 Thầy cô tuyên dương (+2 điểm)": 2,
-    "🌟 Phát biểu xây dựng bài (+1 điểm)": 1,
-    "💯 Đạt điểm 9, 10 (+2 điểm)": 2,
-    "🤬 Nói tục (-5 điểm)": -5,
-    "📱 Làm việc riêng (-5 điểm)": -5,
-    "🔊 Nói chuyện trong giờ học (-2 điểm)": -2,
-    "✉️ Nghỉ học có phép (-2 điểm)": -2,
-    "⏰ Đi muộn (-5 điểm)": -5,
-    "📚 Không học bài / Thiếu BTVN (-5 điểm)": -5,
-    "👔 Không mặc đồng phục (-5 điểm)": -5,
-    "🧹 Không vệ sinh, lao động (-5 điểm)": -5,
-    "📱 Sử dụng điện thoại (-15 điểm)": -15,
-    "🚨 Nghỉ học không phép (-5 điểm)": -5,
+    "🌸 Thầy cô tuyên dương (+2)": 2,
+    "🌟 Phát biểu xây dựng bài (+1)": 1,
+    "💯 Đạt điểm 9, 10 (+2)": 2,
+    "🏆 Đạt giải phong trào (+5)": 5,
+    "🤬 Nói tục (-5)": -5,
+    "📱 Làm việc riêng (-5)": -5,
+    "🔊 Nói chuyện trong giờ (-2)": -2,
+    "✉️ Nghỉ học có phép (-2)": -2,
+    "⏰ Đi muộn (-1)": -1,
+    "📚 Không học bài / Thiếu BTVN (-5)": -5,
+    "👔 Không mặc đồng phục (-5)": -5,
+    "🧹 Không trực nhật / vệ sinh (-5)": -5,
+    "📱 Sử dụng điện thoại không xin phép (-15)": -15,
+    "🚨 Nghỉ học không phép (-5)": -5,
 }
 
+DEFAULT_STUDENTS = [
+    {"STT": 1, "Họ và tên": "Võ Huỳnh Minh An", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
+    {"STT": 2, "Họ và tên": "Huỳnh Bảo Ngọc Thiên Ân", "Tổ": "Tổ 1", "Điểm thi đua": 100, "Xếp loại": "Tốt", "Lỗi vi phạm": "None"},
+    {"STT": 3, "Họ và tên": "Trần Quốc Bảo", "Tổ": "Tổ 2", "Điểm thi đua": 95, "Xếp loại": "Khá", "Lỗi vi phạm": "Đi muộn x1 (-1) | Nói chuyện x2 (-4)"},
+    {"STT": 4, "Họ và tên": "Nguyễn Lê Hoàng Mai", "Tổ": "Tổ 3", "Điểm thi đua": 103, "Xếp loại": "Tốt", "Lỗi vi phạm": "Phát biểu x3 (+3)"},
+    {"STT": 5, "Họ và tên": "Lê Văn Tuấn", "Tổ": "Tổ 4", "Điểm thi đua": 80, "Xếp loại": "Trung bình", "Lỗi vi phạm": "Thiếu BTVN x2 (-10) | Sử dụng điện thoại x1 (-15)"},
+]
 
+# ==============================================================================
+# HÀM XỬ LÝ DỮ LIỆU
+# ==============================================================================
 def tinh_xep_loai(diem):
     try:
         diem = float(diem)
@@ -72,11 +108,10 @@ def tinh_xep_loai(diem):
         return "Tốt"
     elif diem >= 85:
         return "Khá"
-    elif diem >= 75:
+    elif diem >= 70:
         return "Trung bình"
     else:
         return "Yếu"
-
 
 def clean_dataframe(df_input):
     if df_input is None or df_input.empty:
@@ -98,13 +133,18 @@ def clean_dataframe(df_input):
     df_clean["Xếp loại"] = df_clean["Điểm thi đua"].apply(tinh_xep_loai)
     df_clean["Lỗi vi phạm"] = df_clean["Lỗi vi phạm"].fillna("None").astype(str)
 
-    return df_clean.reset_index(drop=True)
+    # Đảm bảo STT nguyên vẹn
+    if "STT" not in df_clean.columns or df_clean["STT"].isnull().any():
+        df_clean["STT"] = range(1, len(df_clean) + 1)
+    else:
+        df_clean["STT"] = pd.to_numeric(df_clean["STT"], errors="coerce").fillna(range(1, len(df_clean) + 1)).astype(int)
 
+    return df_clean.reset_index(drop=True)
 
 def load_data():
     if API_URL and "/exec" in API_URL:
         try:
-            res = requests.get(API_URL, params={"_t": time.time()}, timeout=10)
+            res = requests.get(API_URL, params={"_t": time.time()}, timeout=7)
             if res.status_code == 200:
                 data = res.json()
                 if isinstance(data, list) and len(data) > 1:
@@ -123,11 +163,9 @@ def load_data():
 
     return pd.DataFrame(DEFAULT_STUDENTS)
 
-
 def update_gsheet(name, score, xeploai, log_text):
     if not API_URL or "/exec" not in API_URL:
-        return False, "Chưa điền link API_URL chuẩn"
-
+        return False, "Chưa thiết lập API Google Sheets"
     try:
         params = {
             "action": "update",
@@ -137,102 +175,90 @@ def update_gsheet(name, score, xeploai, log_text):
             "log": log_text,
             "_t": time.time(),
         }
+        res = requests.get(API_URL, params=params, timeout=10)
+        if res.status_code == 200:
+            res_json = res.json()
+            if res_json.get("status") == "success":
+                return True, "Thành công"
+            return False, res_json.get("message", "Lỗi dữ liệu Google Apps Script")
+        return False, f"Lỗi HTTP {res.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+def reset_new_week_gsheet():
+    if not API_URL or "/exec" not in API_URL:
+        return False, "Chưa thiết lập API Google Sheets"
+    try:
+        params = {"action": "reset_week", "_t": time.time()}
         res = requests.get(API_URL, params=params, timeout=12)
         if res.status_code == 200:
             res_json = res.json()
             if res_json.get("status") == "success":
                 return True, "Thành công"
-            return False, res_json.get("message", "Lỗi phản hồi từ Google Script")
-        return False, f"Lỗi HTTP: {res.status_code}"
+            return False, res_json.get("message", "Lỗi reset")
+        return False, f"Lỗi HTTP {res.status_code}"
     except Exception as e:
         return False, str(e)
 
-
-def reset_new_week_gsheet():
-    if not API_URL or "/exec" not in API_URL:
-        return False, "Chưa điền link API_URL chuẩn"
-
-    try:
-        params = {"action": "reset_week", "_t": time.time()}
-        res = requests.get(API_URL, params=params, timeout=15)
-        if res.status_code == 200:
-            res_json = res.json()
-            if res_json.get("status") == "success":
-                return True, "Thành công"
-            return False, res_json.get("message", "Lỗi reset từ Google Script")
-        return False, f"Lỗi kết nối HTTP: {res.status_code}"
-    except Exception as e:
-        return False, str(e)
-
-
-# Khởi tạo dữ liệu
+# Khởi tạo session state
 if "df" not in st.session_state:
     st.session_state.df = load_data()
 
 df = st.session_state.df
 
-# ====================================================
-# SIDEBAR
-# ====================================================
+# ==============================================================================
+# SIDEBAR QUẢN TRỊ
+# ==============================================================================
 with st.sidebar:
-    st.header("🔐 ĐĂNG NHẬP VAI TRÒ")
+    st.title("🏫 Quản Lý Lớp Học")
+    st.caption("Hệ thống theo dõi & đánh giá thi đua tuần")
+    st.divider()
+
+    st.subheader("Vai trò sử dụng")
     vai_tro = st.selectbox(
-        "Bạn là ai?:",
-        [
-            "👑 Giáo viên chủ nhiệm",
-            "Tổ trưởng Tổ 1",
-            "Tổ trưởng Tổ 2",
-            "Tổ trưởng Tổ 3",
-            "Tổ trưởng Tổ 4",
-        ],
+        "Chọn tư cách thao tác:",
+        ["👑 Giáo viên chủ nhiệm", "Tổ trưởng Tổ 1", "Tổ trưởng Tổ 2", "Tổ trưởng Tổ 3", "Tổ trưởng Tổ 4"],
+        label_visibility="collapsed"
     )
 
-    st.markdown("---")
-    st.subheader("📁 Tải danh sách lớp mới")
-    uploaded_file = st.file_uploader(
-        "Chọn file Excel (.xlsx) hoặc CSV:",
-        type=["xlsx", "csv"],
-        help="Cột cần có: STT, Họ và tên, Tổ",
-    )
-
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.name.endswith(".xlsx"):
-                new_df = pd.read_excel(uploaded_file)
-            else:
-                new_df = pd.read_csv(uploaded_file)
-
-            new_df = clean_dataframe(new_df)
-            st.session_state.df = new_df
-            new_df.to_csv(DATA_FILE, index=False)
-            st.success("✅ Đã nạp danh sách lớp thành công!")
-            time.sleep(1)
-            st.rerun()
-        except Exception as e:
-            st.error(f"Lỗi đọc file: {e}")
-
-    st.markdown("---")
-    st.subheader("Chức năng:")
-
-    danh_sach_menu = [
-        "📝 Ghi Nhận Thi Đua",
-        "📊 Bảng Tổng Hợp Lớp",
-        "📬 Tải File Báo Cáo",
+    st.subheader("Điều hướng chức năng")
+    menu_items = [
+        "📝 Ghi nhận điểm số",
+        "✏️ Chỉnh sửa / Khắc phục lỗi",
+        "📊 Tổng quan & Thống kê",
+        "📥 Xuất dữ liệu báo cáo",
     ]
     if "Giáo viên" in vai_tro:
-        danh_sach_menu.append("⚙️ Quản Lý Tuần Mới (Reset)")
+        menu_items.append("⚙️ Khởi tạo tuần mới (Reset)")
 
-    chuc_nang = st.radio("Lựa chọn màn hình:", danh_sach_menu, label_visibility="collapsed")
+    chuc_nang = st.radio("Chọn chức năng:", menu_items, label_visibility="collapsed")
+    st.divider()
 
-    st.markdown("---")
-    if st.button("🔄 Cập nhật dữ liệu mới nhất", use_container_width=True):
+    # Nhập danh sách lớp
+    with st.expander("📁 Tải danh sách lớp (Excel/CSV)"):
+        uploaded_file = st.file_uploader("Tải file danh sách:", type=["xlsx", "csv"])
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.endswith(".xlsx"):
+                    new_df = pd.read_excel(uploaded_file)
+                else:
+                    new_df = pd.read_csv(uploaded_file)
+
+                new_df = clean_dataframe(new_df)
+                st.session_state.df = new_df
+                new_df.to_csv(DATA_FILE, index=False)
+                st.success("Đã nạp danh sách thành công!")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi đọc file: {e}")
+
+    if st.button("🔄 Đồng bộ lại dữ liệu", use_container_width=True):
         st.session_state.df = load_data()
+        st.toast("Đã đồng bộ lại dữ liệu!", icon="✅")
         st.rerun()
 
-# ====================================================
-# KHU VỰC NỘI DUNG CHÍNH
-# ====================================================
-
+# Lọc theo tổ của tổ trưởng
 if "Tổ 1" in vai_tro:
     df_role = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
@@ -244,131 +270,290 @@ elif "Tổ 4" in vai_tro:
 else:
     df_role = df.copy()
 
-if chuc_nang == "📝 Ghi Nhận Thi Đua":
-    st.title(f"{vai_tro}")
+# ==============================================================================
+# CHỨC NĂNG 1: GHI NHẬN THI ĐUA
+# ==============================================================================
+if chuc_nang == "📝 Ghi nhận điểm số":
+    st.subheader(f"📝 Ghi nhận điểm thi đua — {vai_tro}")
+    st.caption("Cộng hoặc trừ điểm thi đua cho học sinh theo các tiêu chí chuẩn hóa")
 
-    list_to = ["Tất cả các bạn"] + sorted(list(df_role["Tổ"].dropna().unique()))
-    col_filter, _ = st.columns([2, 2])
-    with col_filter:
-        to_duoc_chon = st.selectbox("👉 Lọc theo Tổ:", list_to)
+    # Tạo danh sách định danh rõ ràng: STT - Tên - Tổ (tránh trùng tên)
+    danh_sach_hien_thi = [
+        f"#{row['STT']} - {row['Họ và tên']} ({row['Tổ']})"
+        for _, row in df_role.iterrows()
+    ]
 
-    if to_duoc_chon != "Tất cả các bạn":
-        df_form = df_role[df_role["Tổ"] == to_duoc_chon].copy()
-    else:
-        df_form = df_role.copy()
+    with st.container(border=True):
+        col1, col2 = st.columns([1.5, 1])
+        
+        with col1:
+            hs_chon_raw = st.selectbox("👤 Chọn học sinh:", danh_sach_hien_thi if danh_sach_hien_thi else ["(Không có học sinh)"])
+            loi_chon = st.selectbox("📋 Nội dung tuyên dương / Vi phạm:", list(DANH_SACH_LOI.keys()))
+        
+        with col2:
+            so_lan = st.number_input("🔢 Số lần thực hiện:", min_value=1, max_value=20, value=1, step=1)
+            ghi_chu = st.text_input("📝 Ghi chú kèm theo (VD: Tiết 2 môn Toán):")
 
-    with st.form("form_nhap_diem"):
-        valid_students = df_form[df_form["Họ và tên"].str.strip() != ""]
-        if not valid_students.empty:
-            ds_lua_chon_hs = [
-                f"{row['Họ và tên']} ({row['Tổ']})"
-                for _, row in valid_students.iterrows()
-            ]
-        else:
-            ds_lua_chon_hs = ["(Chưa có học sinh nào)"]
+        # Xem trước thông tin học sinh
+        if danh_sach_hien_thi and hs_chon_raw != "(Không có học sinh)":
+            stt_hs = int(hs_chon_raw.split(" - ")[0].replace("#", ""))
+            current_row = df[df["STT"] == stt_hs].iloc[0]
+            diem_delta = DANH_SACH_LOI[loi_chon] * so_lan
+            diem_sau_khi_luu = current_row["Điểm thi đua"] + diem_delta
+            
+            st.markdown(
+                f"""
+                <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin: 12px 0;">
+                    <b>Điểm hiện tại:</b> <span style="color:#0284c7; font-weight:700;">{current_row['Điểm thi đua']}</span> | 
+                    <b>Biến động:</b> <span style="color:{'#16a34a' if diem_delta > 0 else '#dc2626'}; font-weight:700;">{'+' if diem_delta > 0 else ''}{diem_delta}</span> | 
+                    <b>Dự kiến sau khi lưu:</b> <span style="color:#0f172a; font-weight:700;">{diem_sau_khi_luu}</span> ({tinh_xep_loai(diem_sau_khi_luu)})
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        c1, c2 = st.columns([2, 1])
-        with c1:
-            hs_chon = st.selectbox("👤 Chọn học sinh:", ds_lua_chon_hs)
-            loi_chon = st.selectbox("📋 Nội dung thi đua / Vi phạm:", list(DANH_SACH_LOI.keys()))
-        with c2:
-            so_lan = st.number_input("🔢 Số lần:", min_value=1, max_value=20, value=1)
-            ghi_chu = st.text_input("✏️ Ghi chú (Môn/Tiết...):")
+        btn_save = st.button("💾 Xác nhận và lưu điểm", type="primary", use_container_width=True)
 
-        btn_save = st.form_submit_button("💾 LƯU ĐIỂM SỐ")
+        if btn_save and hs_chon_raw != "(Không có học sinh)":
+            stt_hs = int(hs_chon_raw.split(" - ")[0].replace("#", ""))
+            match_idx = df[df["STT"] == stt_hs].index[0]
+            
+            diem_thay_doi = DANH_SACH_LOI[loi_chon] * int(so_lan)
+            old_score = int(df.at[match_idx, "Điểm thi đua"])
+            new_score = old_score + diem_thay_doi
+            xeploai_moi = tinh_xep_loai(new_score)
 
-        if btn_save:
-            if hs_chon == "(Chưa có học sinh nào)":
-                st.error("⚠️ Vui lòng chọn học sinh hợp lệ!")
+            noi_dung_ngan = loi_chon.split(" (")[0]
+            log_item = f"{noi_dung_ngan} x{so_lan}" + (f" [{ghi_chu}]" if ghi_chu else "")
+            
+            old_log = str(df.at[match_idx, "Lỗi vi phạm"]).strip()
+            if old_log in ["None", "nan", "", "NaN"]:
+                full_log = log_item
             else:
-                ten_hs_thuc_te = hs_chon.split(" (")[0].strip()
-                match_indices = df[df["Họ và tên"] == ten_hs_thuc_te].index
+                full_log = f"{old_log} | {log_item}"
 
-                if len(match_indices) > 0:
-                    idx = match_indices[0]
-                    diem_thay_doi = int(DANH_SACH_LOI[loi_chon]) * int(so_lan)
-                    curr_score = int(df.at[idx, "Điểm thi đua"])
-                    new_score = curr_score + diem_thay_doi
-                    xeploai_moi = tinh_xep_loai(new_score)
+            # Cập nhật state & local CSV
+            df.at[match_idx, "Điểm thi đua"] = new_score
+            df.at[match_idx, "Xếp loại"] = xeploai_moi
+            df.at[match_idx, "Lỗi vi phạm"] = full_log
+            df.to_csv(DATA_FILE, index=False)
+            st.session_state.df = df
 
-                    noi_dung_loi = loi_chon.split(" (")[0]
-                    log_text = f"{noi_dung_loi} x{so_lan}" + (f" ({ghi_chu})" if ghi_chu else "")
-                    old_log = str(df.at[idx, "Lỗi vi phạm"]).strip()
+            # Đồng bộ Google Sheet
+            if API_URL and "/exec" in API_URL:
+                ten_hs = df.at[match_idx, "Họ và tên"]
+                ok, msg = update_gsheet(ten_hs, new_score, xeploai_moi, full_log)
+                if not ok:
+                    st.warning(f"Đã lưu local, cảnh báo Cloud: {msg}")
 
-                    if old_log in ["None", "nan", "", "NaN"]:
-                        full_log = log_text
-                    else:
-                        full_log = f"{old_log} | {log_text}"
+            st.toast(f"Đã cập nhật điểm cho {df.at[match_idx, 'Họ và tên']}!", icon="✅")
+            time.sleep(0.8)
+            st.rerun()
 
-                    df.at[idx, "Điểm thi đua"] = new_score
-                    df.at[idx, "Xếp loại"] = xeploai_moi
-                    df.at[idx, "Lỗi vi phạm"] = full_log
-                    df.to_csv(DATA_FILE, index=False)
-
-                    if API_URL and "/exec" in API_URL:
-                        with st.spinner("Đang đồng bộ lên Google Sheets..."):
-                            ok, msg = update_gsheet(ten_hs_thuc_te, new_score, xeploai_moi, full_log)
-                            if not ok:
-                                st.warning(f"Lưu nội bộ thành công, chưa đồng bộ lên mạng: {msg}")
-
-                    st.success(f"✅ Đã ghi nhận điểm cho học sinh {ten_hs_thuc_te}!")
-                    time.sleep(1)
-                    st.rerun()
-
-    st.markdown("---")
-    st.subheader("📋 Bảng điểm học sinh thuộc quyền quản lý:")
-    st.dataframe(df_form, use_container_width=True, hide_index=True)
-
-elif chuc_nang == "📊 Bảng Tổng Hợp Lớp":
-    st.title("📊 BẢNG TỔNG HỢP TOÀN LỚP")
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-elif chuc_nang == "📬 Tải File Báo Cáo":
-    st.title("📬 TẢI FILE BÁO CÁO THI ĐUA")
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="ThiDua")
-    buffer.seek(0)
-    st.download_button(
-        label="📥 Tải xuống file Excel (.xlsx)",
-        data=buffer,
-        file_name="Bao_Cao_Thi_Dua.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # Danh sách học sinh theo phạm vi quản lý
+    st.markdown("#### 📋 Danh sách học sinh phụ trách")
+    st.dataframe(
+        df_role[["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Lỗi vi phạm"]],
         use_container_width=True,
+        hide_index=True,
     )
 
-elif chuc_nang == "⚙️ Quản Lý Tuần Mới (Reset)":
-    st.title("⚙️ QUẢN LÝ VÀ CHUYỂN SANG TUẦN MỚI")
-    st.warning("⚠️ **LƯU Ý:** Hãy tải file báo cáo Excel ở mục '📬 Tải File Báo Cáo' trước khi thực hiện reset!")
+# ==============================================================================
+# CHỨC NĂNG 2: CHỈNH SỬA / KHẮC PHỤC LỖI (TÍNH NĂNG MỚI ĐƯỢC BỔ SUNG)
+# ==============================================================================
+elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục lỗi":
+    st.subheader("✏️ Chỉnh sửa & Khắc phục sai sót")
+    st.caption("Cho phép điều chỉnh điểm trực tiếp hoặc xóa bớt lịch sử ghi chú vi phạm nếu đã nhập nhầm")
 
-    st.info(
-        "Hành động này sẽ:\n"
-        "- Đưa điểm thi đua của **tất cả học sinh về 100 điểm**.\n"
-        "- Đặt lại xếp loại thành **Tốt**.\n"
-        "- **Xóa toàn bộ danh sách lỗi vi phạm** của tuần cũ."
-    )
+    danh_sach_hien_thi = [
+        f"#{row['STT']} - {row['Họ và tên']} ({row['Tổ']})"
+        for _, row in df_role.iterrows()
+    ]
 
-    confirm_check = st.checkbox("Xác nhận: Tôi đã lưu lại báo cáo tuần cũ và đồng ý xóa vi phạm để sang tuần mới.")
+    selected_student_str = st.selectbox("Chọn học sinh muốn chỉnh sửa:", danh_sach_hien_thi)
 
-    if st.button("🔄 BẮT ĐẦU TUẦN MỚI (RESET TOÀN LỚP)", type="primary"):
-        if confirm_check:
-            with st.spinner("Đang tiến hành đặt lại dữ liệu tuần mới..."):
-                df["Điểm thi đua"] = 100
-                df["Xếp loại"] = "Tốt"
-                df["Lỗi vi phạm"] = "None"
+    if selected_student_str:
+        stt_target = int(selected_student_str.split(" - ")[0].replace("#", ""))
+        match_idx = df[df["STT"] == stt_target].index[0]
+        student_data = df.loc[match_idx]
+
+        with st.container(border=True):
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                edit_name = st.text_input("Họ và tên học sinh:", value=student_data["Họ và tên"])
+                edit_group = st.text_input("Tổ:", value=student_data["Tổ"])
+            with col_e2:
+                edit_score = st.number_input("Điểm thi đua chính thức:", value=int(student_data["Điểm thi đua"]), step=1)
+                calculated_rank = tinh_xep_loai(edit_score)
+                st.info(f"Xếp loại dự kiến tự động: **{calculated_rank}**")
+
+            edit_logs = st.text_area(
+                "Lịch sử ghi chú & vi phạm (Ngăn cách nhau bởi dấu gạch đứng | ):",
+                value=str(student_data["Lỗi vi phạm"]),
+                help="Bạn có thể xóa bớt những mục đã ghi nhầm hoặc viết lại chữ 'None' nếu không còn lỗi."
+            )
+
+            col_btn1, col_btn2 = st.columns([1, 1])
+            with col_btn1:
+                btn_save_edit = st.button("💾 Cập nhật thay đổi", type="primary", use_container_width=True)
+            with col_btn2:
+                btn_reset_single = st.button("🔄 Đặt lại về 100 điểm & Xóa sạch lỗi", use_container_width=True)
+
+            if btn_save_edit:
+                df.at[match_idx, "Họ và tên"] = edit_name.strip()
+                df.at[match_idx, "Tổ"] = edit_group.strip()
+                df.at[match_idx, "Điểm thi đua"] = int(edit_score)
+                df.at[match_idx, "Xếp loại"] = calculated_rank
+                df.at[match_idx, "Lỗi vi phạm"] = edit_logs.strip() if edit_logs.strip() != "" else "None"
+                
                 df.to_csv(DATA_FILE, index=False)
                 st.session_state.df = df
 
                 if API_URL and "/exec" in API_URL:
-                    ok, msg = reset_new_week_gsheet()
-                    if not ok:
-                        st.warning(f"Đã reset trên máy, nhưng chưa đồng bộ được Google Sheet: {msg}")
-                    else:
-                        st.success("🎉 Đã reset thành công sang tuần mới trên cả máy tính và Google Sheets!")
-                else:
-                    st.success("🎉 Đã reset dữ liệu sang tuần mới thành công!")
+                    update_gsheet(edit_name.strip(), int(edit_score), calculated_rank, edit_logs.strip())
 
-                time.sleep(1.5)
+                st.success(f"Đã cập nhật thông tin học sinh #{stt_target} thành công!")
+                time.sleep(0.8)
                 st.rerun()
-        else:
-            st.error("⚠️ Vui lòng tích chọn ô xác nhận ở trên trước khi bấm Reset!")
+
+            if btn_reset_single:
+                df.at[match_idx, "Điểm thi đua"] = 100
+                df.at[match_idx, "Xếp loại"] = "Tốt"
+                df.at[match_idx, "Lỗi vi phạm"] = "None"
+                
+                df.to_csv(DATA_FILE, index=False)
+                st.session_state.df = df
+
+                if API_URL and "/exec" in API_URL:
+                    update_gsheet(student_data["Họ và tên"], 100, "Tốt", "None")
+
+                st.success("Đã hoàn tác và trả học sinh về trạng thái ban đầu!")
+                time.sleep(0.8)
+                st.rerun()
+
+# ==============================================================================
+# CHỨC NĂNG 3: TỔNG QUAN & THỐNG KÊ
+# ==============================================================================
+elif chuc_nang == "📊 Tổng quan & Thống kê":
+    st.subheader("📊 Bảng thống kê toàn diện lớp học")
+
+    # Hàng Metric Thẻ thông tin
+    m1, m2, m3, m4 = st.columns(4)
+    total_students = len(df)
+    avg_score = round(df["Điểm thi đua"].mean(), 1) if not df.empty else 0
+    tot_count = len(df[df["Xếp loại"] == "Tốt"])
+    yeu_count = len(df[df["Xếp loại"].isin(["Trung bình", "Yếu"])])
+
+    with m1:
+        st.markdown(f'<div class="stat-card"><span class="stat-label">Sĩ số lớp</span><span class="stat-value">{total_students}</span></div>', unsafe_allow_html=True)
+    with m2:
+        st.markdown(f'<div class="stat-card"><span class="stat-label">Điểm trung bình</span><span class="stat-value">{avg_score}</span></div>', unsafe_allow_html=True)
+    with m3:
+        st.markdown(f'<div class="stat-card"><span class="stat-label">Xếp loại Tốt</span><span class="stat-value" style="color:#16a34a;">{tot_count}</span></div>', unsafe_allow_html=True)
+    with m4:
+        st.markdown(f'<div class="stat-card"><span class="stat-label">Cần lưu ý (TB/Yếu)</span><span class="stat-value" style="color:#dc2626;">{yeu_count}</span></div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    
+    # Biểu đồ so sánh điểm trung bình giữa các Tổ
+    if "Tổ" in df.columns and not df.empty:
+        st.markdown("#### 🏆 Xếp hạng điểm trung bình theo Tổ")
+        avg_by_to = df.groupby("Tổ")["Điểm thi đua"].mean().round(1).reset_index()
+        avg_by_to = avg_by_to.sort_values(by="Điểm thi đua", ascending=False)
+        st.bar_chart(data=avg_by_to.set_index("Tổ"), use_container_width=True)
+
+    # Hiển thị bảng dữ liệu chính thức
+    st.markdown("#### 📄 Toàn bộ danh sách lớp")
+    
+    # Bộ lọc nhanh
+    f_col1, f_col2 = st.columns([1, 1])
+    with f_col1:
+        loc_to = st.selectbox("Lọc theo tổ:", ["Tất cả"] + sorted(list(df["Tổ"].unique())))
+    with f_col2:
+        loc_xeploai = st.selectbox("Lọc theo xếp loại:", ["Tất cả"] + ["Tốt", "Khá", "Trung bình", "Yếu"])
+
+    df_view = df.copy()
+    if loc_to != "Tất cả":
+        df_view = df_view[df_view["Tổ"] == loc_to]
+    if loc_xeploai != "Tất cả":
+        df_view = df_view[df_view["Xếp loại"] == loc_xeploai]
+
+    st.dataframe(
+        df_view.sort_values(by="Điểm thi đua", ascending=False),
+        column_config={
+            "Điểm thi đua": st.column_config.ProgressColumn(
+                "Điểm thi đua",
+                help="Thang điểm chuẩn 100",
+                format="%d",
+                min_value=0,
+                max_value=120,
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+    )
+
+# ==============================================================================
+# CHỨC NĂNG 4: XUẤT BÁO CÁO
+# ==============================================================================
+elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
+    st.subheader("📥 Xuất báo cáo tổng kết thi đua")
+    st.caption("Tải file danh sách tổng hợp để lưu trữ hoặc in nộp cho nhà trường")
+
+    with st.container(border=True):
+        st.write("Dữ liệu xuất ra sẽ gồm đầy đủ: **STT, Họ tên, Tổ, Điểm thi đua, Xếp loại, và Toàn bộ chi tiết vi phạm**.")
+        
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="BaoCaoThiDua")
+        buffer.seek(0)
+
+        st.download_button(
+            label="📊 Tải xuống file Excel (.xlsx)",
+            data=buffer,
+            file_name=f"Bao_Cao_Thi_Dua_Tuan_{time.strftime('%Y_%m_%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True,
+        )
+
+# ==============================================================================
+# CHỨC NĂNG 5: RESET TUẦN MỚI
+# ==============================================================================
+elif chuc_nang == "⚙️ Khởi tạo tuần mới (Reset)":
+    st.subheader("⚙️ Thiết lập & Bắt đầu tuần mới")
+    st.warning("⚠️ **Chú ý:** Trước khi bấm đặt lại, hãy đảm bảo bạn đã tải file Excel của tuần hiện tại để lưu trữ.")
+
+    with st.container(border=True):
+        st.markdown(
+            """
+            **Hệ thống sẽ thực hiện các thao tác sau:**
+            1. Đặt toàn bộ điểm của học sinh về mức **100 điểm**.
+            2. Chuyển toàn bộ xếp loại về **Tốt**.
+            3. Xóa trắng toàn bộ lịch sử vi phạm/tuyên dương của tuần cũ.
+            """
+        )
+
+        confirm = st.checkbox("Tôi xác nhận đã lưu trữ báo cáo tuần này và muốn bắt đầu tuần mới.")
+
+        if st.button("🔄 Bắt đầu tuần mới (Xóa dữ liệu tuần cũ)", type="primary"):
+            if confirm:
+                with st.spinner("Đang đặt lại dữ liệu lớp..."):
+                    df["Điểm thi đua"] = 100
+                    df["Xếp loại"] = "Tốt"
+                    df["Lỗi vi phạm"] = "None"
+                    df.to_csv(DATA_FILE, index=False)
+                    st.session_state.df = df
+
+                    if API_URL and "/exec" in API_URL:
+                        ok, msg = reset_new_week_gsheet()
+                        if not ok:
+                            st.warning(f"Đã reset trên máy, lỗi đồng bộ Sheets: {msg}")
+                        else:
+                            st.success("Đã đồng bộ reset lên Google Sheets!")
+
+                    st.toast("Đã chuyển sang tuần mới thành công!", icon="🎉")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error("Vui lòng tích vào ô xác nhận trước khi thực hiện!")
