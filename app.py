@@ -532,4 +532,24 @@ elif chuc_nang == "⚙️ Khởi tạo tuần mới (Reset)":
 
         confirm = st.checkbox("Xác nhận: Tôi đã lưu trữ báo cáo tuần này và muốn đặt lại dữ liệu.")
 
-        if st.button
+        if st.button("🔄 Bắt đầu tuần mới", type="primary"):
+            if confirm:
+                with st.spinner("Đang đặt lại dữ liệu lớp..."):
+                    df["Điểm thi đua"] = 100
+                    df["Xếp loại"] = "Tốt"
+                    df["Lỗi vi phạm"] = "None"
+                    df.to_csv(DATA_FILE, index=False)
+                    st.session_state.df = df
+
+                    if API_URL and "/exec" in API_URL:
+                        ok, msg = reset_new_week_gsheet()
+                        if not ok:
+                            st.warning(f"Đã lưu local, cảnh báo kết nối Cloud: {msg}")
+                        else:
+                            st.success("Đã đồng bộ lên Google Sheets thành công!")
+
+                    st.toast("Đã khởi tạo tuần mới!", icon="🎉")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error("Vui lòng tích vào ô xác nhận trước khi tiếp tục!")
