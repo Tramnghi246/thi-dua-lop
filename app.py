@@ -6,10 +6,10 @@ import requests
 import streamlit as st
 
 # ==============================================================================
-# CẤU HÌNH TRANG & GIAO DIỆN HIỆN ĐẠI
+# CẤU HÌNH TRANG & GIAO DIỆN CHUẨN CỔNG THÔNG TIN TRƯỜNG THCS CHÍ CÔNG
 # ==============================================================================
 st.set_page_config(
-    page_title="Hệ Thống Thi Đua Học Đường",
+    page_title="Hệ Thống Thi Đua - THCS Chí Công",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -18,25 +18,81 @@ st.set_page_config(
 API_URL = "https://script.google.com/macros/s/AKfycbwoy6GT8XEkwwrLTSXrIk3tMj6lzATeiwrw02cWYz7yEXDhzEtDOoyL8VssgXuJE08q/exec"
 DATA_FILE = "du_lieu_thi_dua.csv"
 
-# CSS tùy biến giao diện trực quan
+# CSS tùy biến nâng cao chuẩn phong cách web trường
 st.markdown(
     """
     <style>
-        .main {
-            background-color: #f8fafc;
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
+        html, body, [class*="css"] {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
+        .main {
+            background-color: #f4f6f9;
+        }
+
+        /* Topbar trường học */
+        .school-top-bar {
+            background: linear-gradient(90deg, #0b4f8a 0%, #1565c0 100%);
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(11, 79, 138, 0.2);
+        }
+        .school-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .school-slogan {
+            font-size: 0.8rem;
+            color: #fde047;
+            font-weight: 600;
+        }
+
+        /* Thẻ học sinh chuyên nghiệp */
+        .student-profile-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .student-avatar {
+            width: 48px;
+            height: 48px;
+            background-color: #0b4f8a;
+            color: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        /* Thẻ thống kê */
         .stat-card {
             background: white;
-            padding: 18px 22px;
+            padding: 16px 20px;
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
             border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
         .stat-label {
-            font-size: 13px;
+            font-size: 12px;
             color: #64748b;
             font-weight: 600;
             text-transform: uppercase;
@@ -47,10 +103,26 @@ st.markdown(
             font-weight: 700;
             color: #0f172a;
         }
+
+        /* Nút bấm */
         .stButton>button {
             border-radius: 8px;
             font-weight: 600;
             transition: all 0.2s ease;
+        }
+        .stButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+        }
+
+        /* Khung trống nề nếp */
+        .empty-log-box {
+            background: white;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 28px;
+            text-align: center;
+            margin: 15px 0;
         }
     </style>
     """,
@@ -104,19 +176,16 @@ def tinh_xep_loai(diem):
         return "Yếu"
 
 def parse_item_info(item_str):
-    """Bóc tách thông tin một mục vi phạm để lấy điểm và số lần"""
     diem_goc = 0
     matched_loi = list(DANH_SACH_LOI.keys())[0]
     so_lan = 1
     ghi_chu = ""
 
-    # Trích xuất ghi chú nếu có dạng [...] hoặc (...)
     if "[" in item_str and "]" in item_str:
         ghi_chu = item_str[item_str.find("[") + 1 : item_str.rfind("]")].strip()
     elif "(" in item_str and ")" in item_str and not any(k in item_str for k in ["(+", "(-"]):
         ghi_chu = item_str[item_str.find("(") + 1 : item_str.rfind(")")].strip()
 
-    # Nhận diện loại lỗi
     for ten_loi, diem in DANH_SACH_LOI.items():
         ten_ngan = ten_loi.split(" (")[0]
         if item_str.startswith(ten_ngan):
@@ -154,7 +223,6 @@ def clean_dataframe(df_input):
 
     df_clean = df_clean.reset_index(drop=True)
     df_clean["STT"] = list(range(1, len(df_clean) + 1))
-
     return df_clean
 
 def load_data():
@@ -216,7 +284,7 @@ def reset_new_week_gsheet():
     except Exception as e:
         return False, str(e)
 
-# Khởi tạo trạng thái
+# Khởi tạo trạng thái dữ liệu
 if "df" not in st.session_state:
     st.session_state.df = load_data()
 
@@ -226,18 +294,18 @@ df = st.session_state.df
 # THANH ĐIỀU HƯỚNG BÊN TRÁI (SIDEBAR)
 # ==============================================================================
 with st.sidebar:
-    st.title("🏫 Quản Lý Lớp Học")
-    st.caption("Theo dõi & đánh giá thi đua học sinh")
+    st.markdown("### 🏫 THCS CHÍ CÔNG")
+    st.caption("Quản lý nề nếp & thi đua lớp học")
     st.divider()
 
-    st.markdown("### 👤 Vai trò truy cập")
+    st.markdown("##### 👤 Vai trò truy cập")
     vai_tro = st.selectbox(
         "Chọn vai trò:",
         ["👑 Giáo viên chủ nhiệm", "Tổ trưởng Tổ 1", "Tổ trưởng Tổ 2", "Tổ trưởng Tổ 3", "Tổ trưởng Tổ 4"],
         label_visibility="collapsed",
     )
 
-    st.markdown("### 🧭 Bảng điều khiển")
+    st.markdown("##### 🧭 Chức năng hệ thống")
     menu_items = [
         "📝 Ghi nhận điểm số",
         "✏️ Chỉnh sửa / Khắc phục",
@@ -262,7 +330,7 @@ with st.sidebar:
                 new_df = clean_dataframe(new_df)
                 st.session_state.df = new_df
                 new_df.to_csv(DATA_FILE, index=False)
-                st.success("✅ Đã tải và chuẩn hóa danh sách thành công!")
+                st.success("✅ Đã chuẩn hóa danh sách thành công!")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
@@ -270,10 +338,10 @@ with st.sidebar:
 
     if st.button("🔄 Đồng bộ lại dữ liệu", use_container_width=True):
         st.session_state.df = load_data()
-        st.toast("Đã làm mới dữ liệu!", icon="🔄")
+        st.toast("Đã làm mới dữ liệu từ Google Sheets!", icon="🔄")
         st.rerun()
 
-# Lọc học sinh theo phạm vi vai trò
+# Lọc theo vai trò
 if "Tổ 1" in vai_tro:
     df_role = df[df["Tổ"].astype(str).str.contains("1", na=False)].copy()
 elif "Tổ 2" in vai_tro:
@@ -286,11 +354,30 @@ else:
     df_role = df.copy()
 
 # ==============================================================================
+# BANNER TRƯỜNG TRÊN ĐẦU NỘI DUNG CHÍNH
+# ==============================================================================
+st.markdown(
+    f"""
+    <div class="school-top-bar">
+        <div>
+            <div class="school-title">TRƯỜNG THCS CHÍ CÔNG - PHAN RÍ CỬA</div>
+            <div class="school-slogan">HỆ THỐNG THEO DÕI THI ĐUA & NỀ NẾP LỚP HỌC</div>
+        </div>
+        <div style="text-align: right; font-size: 0.85rem;">
+            <div><b>Vai trò:</b> {vai_tro}</div>
+            <div style="opacity: 0.85;">Năm học 2026 - 2027</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ==============================================================================
 # MÀN HÌNH 1: GHI NHẬN ĐIỂM SỐ
 # ==============================================================================
 if chuc_nang == "📝 Ghi nhận điểm số":
-    st.subheader(f"📝 Ghi nhận điểm thi đua — {vai_tro}")
-    st.caption("Cộng hoặc trừ điểm thi đua cho học sinh theo các mục đánh giá")
+    st.subheader("📝 Ghi nhận điểm thi đua")
+    st.caption("Cộng hoặc trừ điểm thi đua cho học sinh theo các mục đánh giá nề nếp")
 
     danh_sach_hien_thi = [
         f"#{row['STT']} - {row['Họ và tên']} ({row['Tổ']})"
@@ -321,7 +408,7 @@ if chuc_nang == "📝 Ghi nhận điểm số":
 
             st.markdown(
                 f"""
-                <div style="background-color: #f1f5f9; padding: 10px 16px; border-radius: 8px; margin: 12px 0;">
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 8px; margin: 12px 0;">
                     <b>Điểm hiện tại:</b> <span style="color:#0284c7; font-weight:700;">{current_row['Điểm thi đua']}</span> | 
                     <b>Biến động:</b> <span style="color:{'#16a34a' if diem_delta > 0 else '#dc2626'}; font-weight:700;">{'+' if diem_delta > 0 else ''}{diem_delta}</span> | 
                     <b>Dự kiến sau ghi:</b> <span style="color:#0f172a; font-weight:700;">{diem_sau_khi_luu}</span> ({tinh_xep_loai(diem_sau_khi_luu)})
@@ -360,7 +447,7 @@ if chuc_nang == "📝 Ghi nhận điểm số":
                 ten_hs = df.at[match_idx, "Họ và tên"]
                 ok, msg = update_gsheet(ten_hs, new_score, xeploai_moi, full_log)
                 if not ok:
-                    st.warning(f"Lưu trên máy thành công, Cloud báo: {msg}")
+                    st.warning(f"Lưu máy thành công, Cloud báo: {msg}")
 
             st.toast(f"Đã lưu điểm cho {df.at[match_idx, 'Họ và tên']}!", icon="✅")
             time.sleep(0.8)
@@ -374,7 +461,7 @@ if chuc_nang == "📝 Ghi nhận điểm số":
     )
 
 # ==============================================================================
-# MÀN HÌNH 2: CHỈNH SỬA / XÓA / THÊM TỪNG MỤC CHI TIẾT
+# MÀN HÌNH 2: CHỈNH SỬA / KHẮC PHỤC (GIAO DIỆN PROFILE CARD HIỆN ĐẠI)
 # ==============================================================================
 elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
     st.subheader("✏️ Chỉnh sửa & Khắc phục sai sót")
@@ -396,12 +483,32 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
         curr_rank = student_data["Xếp loại"]
         raw_log = str(student_data["Lỗi vi phạm"]).strip()
 
+        # Tính màu sắc hiển thị xếp loại
+        badge_bg = "#dcfce7" if curr_score >= 100 else ("#fef9c3" if curr_score >= 85 else "#fee2e2")
+        badge_text = "#15803d" if curr_score >= 100 else ("#a16207" if curr_score >= 85 else "#b91c1c")
+        score_color = "#15803d" if curr_score >= 100 else ("#b45309" if curr_score >= 85 else "#dc2626")
+        letter_avatar = student_data['Họ và tên'].split()[-1][0].upper()
+
+        # Thẻ thông tin học sinh chuẩn Portal
         st.markdown(
             f"""
-            <div style="background-color: #f1f5f9; padding: 12px 18px; border-radius: 8px; margin-bottom: 15px;">
-                <b>Học sinh:</b> {student_data['Họ và tên']} ({student_data['Tổ']}) | 
-                <b>Điểm hiện tại:</b> <span style="color:#0284c7; font-weight:700; font-size:16px;">{curr_score}</span> | 
-                <b>Xếp loại:</b> <b>{curr_rank}</b>
+            <div class="student-profile-card">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div class="student-avatar">{letter_avatar}</div>
+                    <div>
+                        <div style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">{student_data['Họ và tên']}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">Thuộc phân ban: <b>{student_data['Tổ']}</b> | STT: #{student_data['STT']}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Điểm thi đua</div>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: {score_color};">{curr_score} đ</div>
+                    </div>
+                    <span style="background-color: {badge_bg}; color: {badge_text}; font-weight: 700; padding: 6px 14px; border-radius: 30px; font-size: 0.85rem; border: 1px solid {badge_text}30;">
+                        Xếp loại: {curr_rank}
+                    </span>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -409,14 +516,23 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
 
         st.markdown("#### 📋 Danh sách các mục đã ghi nhận trong tuần:")
 
-        # Tách danh sách lỗi theo dấu |
         if raw_log in ["None", "nan", "", "NaN"]:
             items_list = []
         else:
             items_list = [item.strip() for item in raw_log.split("|") if item.strip()]
 
+        # Khung Empty State sinh động khi học sinh chưa có vi phạm
         if not items_list:
-            st.info("💡 Học sinh này hiện chưa có vi phạm hoặc điểm thưởng nào!")
+            st.markdown(
+                """
+                <div class="empty-log-box">
+                    <div style="font-size: 2.2rem; margin-bottom: 6px;">🌟</div>
+                    <div style="font-weight: 700; color: #0b4f8a; font-size: 1.05rem;">Học sinh này hiện chưa có vi phạm hoặc điểm trừ nào!</div>
+                    <div style="color: #64748b; font-size: 0.88rem;">Nề nếp và tinh thần học tập đang được duy trì rất tốt.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
             for idx, item in enumerate(items_list):
                 matched_loi, so_lan_old, ghi_chu_old, delta_old = parse_item_info(item)
@@ -432,7 +548,6 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
                             unsafe_allow_html=True,
                         )
                     with col_act1:
-                        # Toggle trạng thái chỉnh sửa mục này
                         edit_key = f"is_editing_{stt_target}_{idx}"
                         if edit_key not in st.session_state:
                             st.session_state[edit_key] = False
@@ -443,7 +558,6 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
 
                     with col_act2:
                         if st.button("🗑️ Xóa bỏ", key=f"del_item_{stt_target}_{idx}", use_container_width=True):
-                            # Hoàn trả lại điểm cũ
                             new_score = curr_score - delta_old
                             new_rank = tinh_xep_loai(new_score)
 
@@ -459,11 +573,11 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
                             if API_URL and "/exec" in API_URL:
                                 update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
 
-                            st.toast(f"Đã xóa mục và hoàn lại điểm!", icon="✅")
+                            st.toast("Đã xóa mục và hoàn lại điểm!", icon="✅")
                             time.sleep(0.8)
                             st.rerun()
 
-                    # KHUNG FORM CHỈNH SỬA TẠI CHỖ KHI BẤM "SỬA"
+                    # Khung sửa đổi tại chỗ
                     if st.session_state.get(f"is_editing_{stt_target}_{idx}", False):
                         st.markdown("---")
                         st.caption(f"🔧 Đang chỉnh sửa mục số {idx + 1}:")
@@ -493,20 +607,17 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
                                 key=f"solan_edit_{stt_target}_{idx}",
                             )
                             st.write("")
-                            if st.button("💾 Lưu cập nhật mục này", type="primary", key=f"save_edit_{stt_target}_{idx}", use_container_width=True):
-                                # 1. Tính điểm mới
+                            if st.button("💾 Lưu cập nhật", type="primary", key=f"save_edit_{stt_target}_{idx}", use_container_width=True):
                                 new_delta = DANH_SACH_LOI[new_loi_selected] * int(new_solan_edit)
-                                score_diff = new_delta - delta_old  # Bù trừ chênh lệch điểm
+                                score_diff = new_delta - delta_old
                                 new_score = curr_score + score_diff
                                 new_rank = tinh_xep_loai(new_score)
 
-                                # 2. Tạo chuỗi log mới
                                 ten_rut_gon = new_loi_selected.split(" (")[0]
                                 new_item_str = f"{ten_rut_gon} x{new_solan_edit}" + (f" [{new_ghichu_edit}]" if new_ghichu_edit else "")
                                 items_list[idx] = new_item_str
                                 new_log = " | ".join(items_list)
 
-                                # 3. Lưu vào hệ thống
                                 df.at[match_idx, "Điểm thi đua"] = new_score
                                 df.at[match_idx, "Xếp loại"] = new_rank
                                 df.at[match_idx, "Lỗi vi phạm"] = new_log
@@ -523,7 +634,6 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
 
         st.markdown("---")
 
-        # KHUNG THÊM BỔ SUNG ĐIỂM/LỖI TRỰC TIẾP TẠI ĐÂY
         with st.expander("➕ Ghi nhận thêm điểm thưởng / vi phạm ngay tại đây"):
             a_col1, a_col2 = st.columns([2, 1])
             with a_col1:
@@ -556,7 +666,6 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
                     time.sleep(0.8)
                     st.rerun()
 
-        # KHUNG CAN THIỆP SỬA ĐIỂM THỦ CÔNG
         with st.expander("🛠️ Can thiệp sửa điểm thủ công (tùy chỉnh nâng cao)"):
             c_s1, c_s2 = st.columns(2)
             with c_s1:
@@ -594,12 +703,12 @@ elif chuc_nang == "📊 Tổng quan & Thống kê":
 
     with m1:
         st.markdown(
-            f'<div class="stat-card"><span class="stat-label">Sĩ số</span><span class="stat-value">{total_students}</span></div>',
+            f'<div class="stat-card"><span class="stat-label">Sĩ số lớp</span><span class="stat-value">{total_students}</span></div>',
             unsafe_allow_html=True,
         )
     with m2:
         st.markdown(
-            f'<div class="stat-card"><span class="stat-label">Điểm TB Lớp</span><span class="stat-value">{avg_score}</span></div>',
+            f'<div class="stat-card"><span class="stat-label">Điểm TB Lớp</span><span class="stat-value" style="color:#0284c7;">{avg_score}</span></div>',
             unsafe_allow_html=True,
         )
     with m3:
@@ -654,7 +763,7 @@ elif chuc_nang == "📊 Tổng quan & Thống kê":
 # ==============================================================================
 elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
     st.subheader("📥 Xuất báo cáo tổng kết")
-    st.caption("Xuất file Excel đầy đủ để in ấn hoặc lưu trữ hồ sơ")
+    st.caption("Xuất file Excel đầy đủ để in ấn hoặc lưu trữ hồ sơ lớp")
 
     with st.container(border=True):
         st.write("File Excel xuất ra chứa thông tin đầy đủ gồm: **STT, Họ và tên, Tổ, Điểm thi đua, Xếp loại, và Danh sách vi phạm**.")
