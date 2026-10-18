@@ -884,6 +884,9 @@ elif chuc_nang == "📊 Tổng quan & Thống kê":
 # ==============================================================================
 # MÀN HÌNH 4: XUẤT BÁO CÁO EXCEL ĐỊNH DẠNG CHUẨN VĂN PHÒNG
 # ==============================================================================
+# ==============================================================================
+# MÀN HÌNH 4: XUẤT BÁO CÁO EXCEL ĐỊNH DẠNG CHUẨN VĂN PHÒNG (ĐÃ SỬA CỘT VI PHẠM)
+# ==============================================================================
 elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
     st.subheader("📥 Xuất báo cáo tổng kết thi đua")
     st.caption("File Excel được tạo tự động với tiêu đề, kẻ khung, căn lề và định dạng màu chuyên nghiệp.")
@@ -910,7 +913,7 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
             border_thin = Side(border_style="thin", color="CBD5E1")
             border_full = Border(left=border_thin, right=border_thin, top=border_thin, bottom=border_thin)
 
-            # Tiêu đề trường & bảng
+            # 1. Tiêu đề trường & bảng
             ws.merge_cells("A1:F1")
             ws["A1"] = "TRƯỜNG THCS CHÍ CÔNG - PHAN RÍ CỬA"
             ws["A1"].font = font_title
@@ -923,6 +926,7 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
 
             ws.append([])
 
+            # 2. Tiêu đề cột
             headers = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Chi tiết vi phạm / Tuyên dương"]
             ws.append(headers)
             header_row = 4
@@ -936,15 +940,28 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
 
             ws.row_dimensions[header_row].height = 26
 
+            # 3. Đổ dữ liệu có quét tự động cột vi phạm
             current_row = 5
             for idx, row in dataframe.iterrows():
+                # Tự động tìm nội dung vi phạm ở các tên cột có thể có
+                chi_tiet_loi = ""
+                for col_name in ["Lỗi vi phạm", "Lỗi vi phạm / Tuyên dương", "Chi tiết vi phạm", "Ghi chú", "Lỗi"]:
+                    if col_name in row and pd.notna(row[col_name]):
+                        val_str = str(row[col_name]).strip()
+                        if val_str not in ["None", "nan", "", "NaN"]:
+                            chi_tiet_loi = val_str
+                            break
+
+                if not chi_tiet_loi:
+                    chi_tiet_loi = "—"
+
                 ws.append([
-                    row["STT"],
-                    row["Họ và tên"],
-                    row["Tổ"],
-                    row["Điểm thi đua"],
-                    row["Xếp loại"],
-                    row["Lỗi vi phạm"] if str(row["Lỗi vi phạm"]) not in ["None", "nan"] else "—"
+                    row.get("STT", idx + 1),
+                    row.get("Họ và tên", ""),
+                    row.get("Tổ", ""),
+                    row.get("Điểm thi đua", 100),
+                    row.get("Xếp loại", "Tốt"),
+                    chi_tiet_loi
                 ])
 
                 for c_idx in range(1, 7):
@@ -963,10 +980,10 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
                     else:
                         cell.alignment = Alignment(horizontal="left", vertical="center")
 
-                ws.row_dimensions[current_row].height = 22
+                ws.row_dimensions[current_row].height = 24
                 current_row += 1
 
-            # Hàng tổng kết điểm trung bình
+            # 4. Hàng tổng kết điểm trung bình
             ws.merge_cells(f"A{current_row}:C{current_row}")
             total_label = ws.cell(row=current_row, column=1, value="ĐIỂM TRUNG BÌNH CẢ LỚP")
             total_label.font = font_bold
@@ -984,7 +1001,8 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
 
             ws.row_dimensions[current_row].height = 24
 
-            col_widths = {1: 8, 2: 26, 3: 12, 4: 15, 5: 14, 6: 45}
+            # 5. Căn chỉnh độ rộng cột
+            col_widths = {1: 8, 2: 26, 3: 12, 4: 15, 5: 14, 6: 55}
             for col_idx, width in col_widths.items():
                 col_letter = get_column_letter(col_idx)
                 ws.column_dimensions[col_letter].width = width
@@ -994,7 +1012,9 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
             output.seek(0)
             return output
 
-        excel_data = tao_excel_chuyen_nghiep(df)
+        # Lấy dữ liệu mới nhất từ session_state
+        df_xuat = st.session_state.df.copy()
+        excel_data = tao_excel_chuyen_nghiep(df_xuat)
 
         st.write("")
         st.download_button(
@@ -1005,7 +1025,6 @@ elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
             type="primary",
             use_container_width=True,
         )
-
 # ==============================================================================
 # MÀN HÌNH 5: RESET TUẦN MỚI (CHỈ DÀNH RIÊNG CHO GVCN)
 # ==============================================================================
