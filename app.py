@@ -725,3 +725,371 @@ elif chuc_nang == "✏️ Chỉnh sửa / Khắc phục":
                                     key=f"select_loi_{stt_target}_{idx}",
                                 )
                                 new_ghichu_edit = st.text_input(
+                                    "Ghi chú sửa đổi:",
+                                    value=ghi_chu_old,
+                                    key=f"ghichu_edit_{stt_target}_{idx}",
+                                )
+                            with e_col2:
+                                new_solan_edit = st.number_input(
+                                    "Số lần đúng:",
+                                    min_value=1,
+                                    max_value=20,
+                                    value=int(so_lan_old),
+                                    key=f"solan_edit_{stt_target}_{idx}",
+                                )
+                                st.write("")
+                                if st.button("💾 Lưu cập nhật", type="primary", key=f"save_edit_{stt_target}_{idx}", use_container_width=True):
+                                    new_delta = DANH_SACH_LOI[new_loi_selected] * int(new_solan_edit)
+                                    score_diff = new_delta - delta_old
+                                    new_score = curr_score + score_diff
+                                    new_rank = tinh_xep_loai(new_score)
+
+                                    ten_rut_gon = new_loi_selected.split(" (")[0]
+                                    new_item_str = f"{ten_rut_gon} x{new_solan_edit}" + (f" [{new_ghichu_edit}]" if new_ghichu_edit else "")
+                                    items_list[idx] = new_item_str
+                                    new_log = " | ".join(items_list)
+
+                                    df.at[match_idx, "Điểm thi đua"] = new_score
+                                    df.at[match_idx, "Xếp loại"] = new_rank
+                                    df.at[match_idx, "Lỗi vi phạm"] = new_log
+                                    df.to_csv(DATA_FILE, index=False)
+                                    st.session_state.df = df
+
+                                    if API_URL and "/exec" in API_URL:
+                                        update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
+
+                                    st.session_state[f"is_editing_{stt_target}_{idx}"] = False
+                                    st.success("Đã cập nhật mục sửa đổi thành công!")
+                                    time.sleep(0.8)
+                                    st.rerun()
+
+            st.markdown("---")
+
+            with st.expander("➕ Ghi nhận thêm điểm thưởng / vi phạm ngay tại đây"):
+                a_col1, a_col2 = st.columns([2, 1])
+                with a_col1:
+                    add_loi = st.selectbox("Nội dung cần thêm:", list(DANH_SACH_LOI.keys()), key=f"add_loi_{stt_target}")
+                    add_note = st.text_input("Ghi chú kèm theo:", key=f"add_note_{stt_target}")
+                with a_col2:
+                    add_times = st.number_input("Số lần:", min_value=1, max_value=20, value=1, key=f"add_times_{stt_target}")
+                    st.write("")
+                    if st.button("➕ Thêm vào hồ sơ", type="primary", key=f"btn_add_now_{stt_target}", use_container_width=True):
+                        add_delta = DANH_SACH_LOI[add_loi] * int(add_times)
+                        new_score = curr_score + add_delta
+                        new_rank = tinh_xep_loai(new_score)
+
+                        item_add_str = f"{add_loi.split(' (')[0]} x{add_times}" + (f" [{add_note}]" if add_note else "")
+                        if raw_log in ["None", "nan", "", "NaN"]:
+                            new_log = item_add_str
+                        else:
+                            new_log = f"{raw_log} | {item_add_str}"
+
+                        df.at[match_idx, "Điểm thi đua"] = new_score
+                        df.at[match_idx, "Xếp loại"] = new_rank
+                        df.at[match_idx, "Lỗi vi phạm"] = new_log
+                        df.to_csv(DATA_FILE, index=False)
+                        st.session_state.df = df
+
+                        if API_URL and "/exec" in API_URL:
+                            update_gsheet(student_data["Họ và tên"], new_score, new_rank, new_log)
+
+                        st.toast("Đã thêm mục mới thành công!", icon="✅")
+                        time.sleep(0.8)
+                        st.rerun()
+
+            if is_gvcn:
+                with st.expander("🛠️ Can thiệp sửa điểm thủ công (Đặc quyền GVCN)"):
+                    c_s1, c_s2 = st.columns(2)
+                    with c_s1:
+                        manual_score = st.number_input("Điểm muốn đặt lại:", value=curr_score, step=1)
+                    with c_s2:
+                        st.write("")
+                        st.write("")
+                        btn_manual = st.button("Lưu điểm tự nhập")
+
+                    if btn_manual:
+                        new_manual_rank = tinh_xep_loai(manual_score)
+                        df.at[match_idx, "Điểm thi đua"] = int(manual_score)
+                        df.at[match_idx, "Xếp loại"] = new_manual_rank
+                        df.to_csv(DATA_FILE, index=False)
+                        st.session_state.df = df
+
+                        if API_URL and "/exec" in API_URL:
+                            update_gsheet(student_data["Họ và tên"], int(manual_score), new_manual_rank, raw_log)
+
+                        st.success("Đã cập nhật lại điểm thủ công!")
+                        time.sleep(0.8)
+                        st.rerun()
+
+# ==============================================================================
+# MÀN HÌNH 3: TỔNG QUAN & THỐNG KÊ
+# ==============================================================================
+elif chuc_nang == "📊 Tổng quan & Thống kê":
+    st.subheader("📊 Bảng thống kê toàn diện lớp học")
+
+    m1, m2, m3, m4 = st.columns(4)
+    total_students = len(df)
+    avg_score = round(df["Điểm thi đua"].mean(), 1) if not df.empty else 0
+    tot_count = len(df[df["Xếp loại"] == "Tốt"])
+    yeu_count = len(df[df["Xếp loại"].isin(["Trung bình", "Yếu"])])
+
+    with m1:
+        st.markdown(
+            f"""
+            <div class="stat-card">
+                <span class="stat-label">Sĩ số lớp</span>
+                <span class="stat-value">{total_students}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with m2:
+        st.markdown(
+            f"""
+            <div class="stat-card">
+                <span class="stat-label">Điểm TB Lớp</span>
+                <span class="stat-value" style="color:#0284c7;">{avg_score}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with m3:
+        st.markdown(
+            f"""
+            <div class="stat-card">
+                <span class="stat-label">Xếp loại Tốt</span>
+                <span class="stat-value" style="color:#16a34a;">{tot_count}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with m4:
+        st.markdown(
+            f"""
+            <div class="stat-card">
+                <span class="stat-label">Cần nhắc nhở</span>
+                <span class="stat-value" style="color:#dc2626;">{yeu_count}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+
+    if "Tổ" in df.columns and not df.empty:
+        st.markdown("#### 🏆 Điểm trung bình thi đua theo Tổ")
+        avg_by_to = df.groupby("Tổ")["Điểm thi đua"].mean().round(1).reset_index()
+        avg_by_to = avg_by_to.sort_values(by="Điểm thi đua", ascending=False)
+        st.bar_chart(data=avg_by_to.set_index("Tổ"), use_container_width=True)
+
+    st.markdown("#### 📄 Bảng tổng hợp thi đua")
+    f_col1, f_col2 = st.columns(2)
+    with f_col1:
+        loc_to = st.selectbox("Lọc theo tổ:", ["Tất cả"] + sorted(list(df["Tổ"].unique())))
+    with f_col2:
+        loc_xeploai = st.selectbox("Lọc theo loại:", ["Tất cả"] + ["Tốt", "Khá", "Trung bình", "Yếu"])
+
+    df_view = df.copy()
+    if loc_to != "Tất cả":
+        df_view = df_view[df_view["Tổ"] == loc_to]
+    if loc_xeploai != "Tất cả":
+        df_view = df_view[df_view["Xếp loại"] == loc_xeploai]
+
+    st.dataframe(
+        df_view.sort_values(by="Điểm thi đua", ascending=False),
+        column_config={
+            "Điểm thi đua": st.column_config.ProgressColumn(
+                "Điểm thi đua",
+                help="Thang điểm chuẩn 100",
+                format="%d",
+                min_value=0,
+                max_value=120,
+            ),
+        },
+        use_container_width=True,
+        hide_index=True,
+    )
+
+# ==============================================================================
+# MÀN HÌNH 4: XUẤT BÁO CÁO EXCEL ĐÃ SỬA CƠ CHẾ NỘI SUY (CHẮC CHẮN HIỆN)
+# ==============================================================================
+elif chuc_nang == "📥 Xuất dữ liệu báo cáo":
+    st.subheader("📥 Xuất báo cáo tổng kết thi đua")
+    st.caption("File Excel được tạo tự động với tiêu đề, kẻ khung, căn lề và định dạng màu chuyên nghiệp.")
+
+    with st.container(border=True):
+        st.write("📌 Bảng báo cáo đã được tối ưu độ rộng cột tự động, chia tổ rõ ràng, sẵn sàng để in ấn hoặc lưu trữ.")
+
+        def tao_excel_chuyen_nghiep(dataframe):
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Báo Cáo Thi Đua"
+            ws.views.sheetView[0].showGridLines = True
+
+            font_title = Font(name="Calibri", size=15, bold=True, color="0B4F8A")
+            font_sub = Font(name="Calibri", size=11, italic=True, color="475569")
+            font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+            font_data = Font(name="Calibri", size=11)
+            font_bold = Font(name="Calibri", size=11, bold=True)
+
+            fill_header = PatternFill(start_color="0B4F8A", end_color="0B4F8A", fill_type="solid")
+            fill_zebra = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+            fill_total = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+
+            border_thin = Side(border_style="thin", color="CBD5E1")
+            border_full = Border(left=border_thin, right=border_thin, top=border_thin, bottom=border_thin)
+
+            # 1. Tiêu đề trường & bảng
+            ws.merge_cells("A1:F1")
+            ws["A1"] = "TRƯỜNG THCS CHÍ CÔNG - PHAN RÍ CỬA"
+            ws["A1"].font = font_title
+            ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+
+            ws.merge_cells("A2:F2")
+            ws["A2"] = f"BẢNG THEO DÕI THI ĐUA & NỀ NẾP LỚP HỌC (Xuất ngày: {time.strftime('%d/%m/%Y %H:%M')})"
+            ws["A2"].font = font_sub
+            ws["A2"].alignment = Alignment(horizontal="center", vertical="center")
+
+            ws.append([])
+
+            # 2. Tiêu đề cột
+            headers = ["STT", "Họ và tên", "Tổ", "Điểm thi đua", "Xếp loại", "Chi tiết vi phạm / Tuyên dương"]
+            ws.append(headers)
+            header_row = 4
+
+            for col_idx in range(1, len(headers) + 1):
+                cell = ws.cell(row=header_row, column=col_idx)
+                cell.font = font_header
+                cell.fill = fill_header
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = border_full
+
+            ws.row_dimensions[header_row].height = 26
+
+            # 3. Đổ dữ liệu
+            current_row = 5
+            for idx, row in dataframe.iterrows():
+                raw_val = str(row.get("Lỗi vi phạm", "")).strip()
+                score_val = int(row.get("Điểm thi đua", 100))
+                
+                # Nếu chuỗi trống mà điểm khác 100, tự động ghi chú biến động điểm
+                if raw_val in ["None", "nan", "NaN", ""]:
+                    if score_val > 100:
+                        noi_dung_xuat = f"Tuyên dương (+{score_val - 100} điểm)"
+                    elif score_val < 100:
+                        noi_dung_xuat = f"Vi phạm nề nếp ({score_val - 100} điểm)"
+                    else:
+                        noi_dung_xuat = "—"
+                else:
+                    noi_dung_xuat = raw_val
+
+                ws.append([
+                    row.get("STT", idx + 1),
+                    row.get("Họ và tên", ""),
+                    row.get("Tổ", ""),
+                    score_val,
+                    row.get("Xếp loại", "Tốt"),
+                    noi_dung_xuat
+                ])
+
+                for c_idx in range(1, 7):
+                    cell = ws.cell(row=current_row, column=c_idx)
+                    cell.font = font_data
+                    cell.border = border_full
+                    if current_row % 2 == 0:
+                        cell.fill = fill_zebra
+
+                    if c_idx in [1, 3, 5]:
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                    elif c_idx == 4:
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    elif c_idx == 6:
+                        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+                    else:
+                        cell.alignment = Alignment(horizontal="left", vertical="center")
+
+                ws.row_dimensions[current_row].height = 24
+                current_row += 1
+
+            # 4. Hàng tổng kết điểm trung bình
+            ws.merge_cells(f"A{current_row}:C{current_row}")
+            total_label = ws.cell(row=current_row, column=1, value="ĐIỂM TRUNG BÌNH CẢ LỚP")
+            total_label.font = font_bold
+            total_label.alignment = Alignment(horizontal="center", vertical="center")
+
+            avg_val = round(dataframe["Điểm thi đua"].mean(), 1) if not dataframe.empty else 0
+            avg_cell = ws.cell(row=current_row, column=4, value=avg_val)
+            avg_cell.font = font_bold
+            avg_cell.alignment = Alignment(horizontal="right", vertical="center")
+
+            for c_idx in range(1, 7):
+                c = ws.cell(row=current_row, column=c_idx)
+                c.fill = fill_total
+                c.border = border_full
+
+            ws.row_dimensions[current_row].height = 24
+
+            # 5. Căn chỉnh độ rộng cột
+            col_widths = {1: 8, 2: 26, 3: 12, 4: 15, 5: 14, 6: 60}
+            for col_idx, width in col_widths.items():
+                col_letter = get_column_letter(col_idx)
+                ws.column_dimensions[col_letter].width = width
+
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output
+
+        df_xuat = st.session_state.df.copy()
+        excel_data = tao_excel_chuyen_nghiep(df_xuat)
+
+        st.write("")
+        st.download_button(
+            label="📊 Tải xuống file Excel Báo Cáo (.xlsx)",
+            data=excel_data,
+            file_name=f"Bao_Cao_Thi_Dua_THCS_Chi_Cong_{time.strftime('%Y_%m_%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+            use_container_width=True,
+        )
+
+# ==============================================================================
+# MÀN HÌNH 5: RESET TUẦN MỚI
+# ==============================================================================
+elif chuc_nang == "⚙️ Khởi tạo tuần mới (Reset)":
+    st.subheader("⚙️ Khởi tạo chu kỳ tuần mới")
+    st.warning("⚠️ **Lưu ý:** Hãy tải file báo cáo Excel ở mục '📥 Xuất dữ liệu báo cáo' trước khi thực hiện thao tác này.")
+
+    with st.container(border=True):
+        st.markdown(
+            """
+            **Hệ thống sẽ thực hiện:**
+            - Khôi phục điểm tất cả học sinh về **100 điểm**.
+            - Cập nhật toàn bộ xếp loại về **Tốt**.
+            - Xóa sạch danh sách ghi nhận lỗi vi phạm/khen thưởng cũ.
+            """
+        )
+
+        confirm = st.checkbox("Xác nhận: Tôi đã lưu trữ báo cáo tuần này và muốn đặt lại dữ liệu.")
+
+        if st.button("🔄 Bắt đầu tuần mới", type="primary"):
+            if confirm:
+                with st.spinner("Đang đặt lại dữ liệu lớp..."):
+                    df["Điểm thi đua"] = 100
+                    df["Xếp loại"] = "Tốt"
+                    df["Lỗi vi phạm"] = ""
+                    df.to_csv(DATA_FILE, index=False)
+                    st.session_state.df = df
+
+                    if API_URL and "/exec" in API_URL:
+                        ok, msg = reset_new_week_gsheet()
+                        if not ok:
+                            st.warning(f"Đã lưu local, cảnh báo kết nối Cloud: {msg}")
+                        else:
+                            st.success("Đã đồng bộ lên Google Sheets thành công!")
+
+                    st.toast("Đã khởi tạo tuần mới!", icon="🎉")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error("Vui lòng tích vào ô xác nhận trước khi tiếp tục!")
